@@ -970,6 +970,10 @@ function levelComplete(){
 document.getElementById('skilltree').classList.remove('hide');renderSkilltree()}
 function closeSkilltree(){document.getElementById('skilltree').classList.add('hide');if(window.menuSkillView==='pause'){window.menuSkillView='';paused=true;document.getElementById('pause').classList.remove('hide');return}if(window.menuShopView==='skills'){window.menuShopView='';saveMeta();showScreen('menu');return}
 document.getElementById('shop').classList.remove('hide');renderShop()}
+function persistShopPurchase(){
+ saveMeta();
+ try{for(const key of [GAME_SAVE_KEY,'laUltimaLlave_run_v1']){const raw=localStorage.getItem(key);if(!raw)continue;const run=JSON.parse(raw);if(!run||!run.S||!run.META)continue;run.META=JSON.parse(JSON.stringify(META));localStorage.setItem(key,JSON.stringify(run))}}catch(err){console.warn('No se pudo actualizar la compra en la partida guardada',err)}
+}
 function skillCost(i){const keys=['hp','dmg','spd','cd','dj','luck','armor','throw','fury'];const base=[10,12,10,12,18,20,16,18,18][i]||20;return base*Math.pow((META.sk[keys[i]]||0)+1,1.55)|0}
 function renderSkilltree(){const sk=META.sk;document.getElementById('skPts').textContent=META.xp;
 const keys=['hp','dmg','spd','cd','dj','luck','armor','throw','fury'],items=[['Vida máxima +10 permanente',sk.hp],['Daño +2',sk.dmg],['Velocidad +5% permanente',sk.spd],['Recarga de habilidad -10%',sk.cd],['Doble salto (desbloquea el segundo salto)',sk.dj],['Más suerte: mejores botines y cofres',sk.luck],['Piel dura: reduce daño recibido',sk.armor||0],['Lanzamiento experto: +20% daño lanzable',sk.throw||0],['Furia: +velocidad de ataque',sk.fury||0]];
@@ -977,10 +981,10 @@ const base=items.map((it,i)=>{const cost=skillCost(i);return '<div><span>'+it[0]
  const powers=META.powerSkills||(META.powerSkills={storm:0,meteor:0,quake:0}),options=[['storm','⚡ Tormenta eléctrica',120,'Daña a todos los enemigos cercanos en un gran radio.'],['meteor','☄ Lluvia de meteoritos',180,'Golpe masivo a distancia: daño devastador a jefes.'],['quake','🌋 Terremoto',150,'Sacude la arena, daña y lanza por los aires a los enemigos.']];
  const powerHtml='<h2 style=color:#c8a8ff>HABILIDADES PODEROSAS · V PARA USAR</h2>'+options.map(([id,name,cost,desc],idx)=>{const owned=!!powers[id],active=(META.activePowerSkill||'shadow')===id;const button=active?'<span style=color:#7dff9e>EQUIPADA (V)</span>':owned?'<button class=main style=padding:6px 10px onclick="equipPowerSkill('+idx+')">EQUIPAR</button>':META.xp>=cost?'<button class=main style=padding:6px 10px onclick="unlockPowerSkill('+idx+')">DESBLOQUEAR · '+cost+' XP</button>':'<span style=color:#ff9a9a>NECESITA '+cost+' XP</span>';return '<div><span>'+name+'<br><small>'+desc+'</small></span><b>'+button+'</b></div>'}).join('')+'<p><small>H: cambiar entre las habilidades que desbloqueaste.</small></p>';
  document.getElementById('skBody').innerHTML=base+powerHtml}
-function equipPowerSkill(index){const id=['storm','meteor','quake'][index],p=META.powerSkills||{};if(!id||!p[id])return;META.activePowerSkill=id;saveMeta();renderSkilltree();toast('Habilidad equipada: '+id.toUpperCase()+' · usá V')}
-function unlockPowerSkill(index){const id=['storm','meteor','quake'][index],costs={storm:120,meteor:180,quake:150},p=META.powerSkills||(META.powerSkills={storm:0,meteor:0,quake:0});if(!id||!costs[id]||p[id]||META.xp<costs[id])return;META.xp-=costs[id];p[id]=1;META.activePowerSkill=id;saveMeta();renderSkilltree();toast('¡Habilidad poderosa desbloqueada! '+id.toUpperCase()+' · usá V')}
+function equipPowerSkill(index){const id=['storm','meteor','quake'][index],p=META.powerSkills||{};if(!id||!p[id])return;META.activePowerSkill=id;persistShopPurchase();renderSkilltree();toast('Habilidad equipada: '+id.toUpperCase()+' · usá V')}
+function unlockPowerSkill(index){const id=['storm','meteor','quake'][index],costs={storm:120,meteor:180,quake:150},p=META.powerSkills||(META.powerSkills={storm:0,meteor:0,quake:0});if(!id||!costs[id]||p[id]||META.xp<costs[id])return;META.xp-=costs[id];p[id]=1;META.activePowerSkill=id;persistShopPurchase();renderSkilltree();toast('¡Habilidad poderosa desbloqueada! '+id.toUpperCase()+' · usá V')}
 function cyclePowerSkill(){const list=['shadow',...Object.keys(META.powerSkills||{}).filter(id=>META.powerSkills[id])];const i=list.indexOf(META.activePowerSkill||'shadow');META.activePowerSkill=list[(i+1)%list.length];saveMeta();toast('Habilidad: '+META.activePowerSkill.toUpperCase()+' · V para usar')}
-function buySkill(i){const sk=META.sk,cost=skillCost(i);if(META.xp<cost)return;if(i==4&&sk.dj>=1)return;META.xp-=cost;if(i==0){sk.hp++;META.maxhp+=10;META.hp=META.maxhp}if(i==1)sk.dmg++;if(i==2)sk.spd++;if(i==3)sk.cd++;if(i==4){sk.dj++;RUN.doubleJump=true}if(i==5)sk.luck++;if(i==6)sk.armor=(sk.armor||0)+1;if(i==7)sk.throw=(sk.throw||0)+1;if(i==8)sk.fury=(sk.fury||0)+1;renderSkilltree()}
+function buySkill(i){const sk=META.sk,cost=skillCost(i);if(META.xp<cost)return;if(i==4&&sk.dj>=1)return;META.xp-=cost;if(i==0){sk.hp++;META.maxhp+=10;META.hp=META.maxhp}if(i==1)sk.dmg++;if(i==2)sk.spd++;if(i==3)sk.cd++;if(i==4){sk.dj++;RUN.doubleJump=true}if(i==5)sk.luck++;if(i==6)sk.armor=(sk.armor||0)+1;if(i==7)sk.throw=(sk.throw||0)+1;if(i==8)sk.fury=(sk.fury||0)+1;persistShopPurchase();renderSkilltree()}
 const WEAPON_INFO=[['bow','🏹 Arco','Flechas con trayectoria curva',90,1],['revolver','🔫 Revólver','Disparo único potente',130,2],['rifle','🎯 Rifle','Disparo recto y estable',180,3],['smg','💥 Subfusil','Ráfaga de 3 proyectiles',230,4],['shotgun','💥 Escopeta','7 perdigones a corta distancia, muy fuerte de cerca',210,3],['crossbow','🏹 Ballesta','Virote lento que atraviesa',270,5],['sniper','🎯 Francotirador','Disparo muy potente y perforante',320,6],['laser','⚡ Arma láser','Rayo de energía que atraviesa enemigos',520,7],['rocket','🚀 Lanzacohetes','Cohetes explosivos de gran daño',680,6]];
 const ARMOR_MATS=[['Cuero','#9b6338',1,35],['Cota de malla','#aeb8c2',2,65],['Oro','#e7bd35',3,100],['Cobre','#b87345',4,140],['Bronce','#ad7948',5,185],['Hierro','#89939e',6,240],['Diamante','#55e4ed',7,340]];
 const ARMOR_SLOTS=[['helmet','Casco'],['chest','Pechera'],['legs','Pantalones'],['boots','Botas']];
@@ -1015,25 +1019,25 @@ function renderShop(){
 function buySwordTier(id){
  const data={wood:[1,35],stone:[2,65],iron:[3,110],diamond:[6,240]}[id];
  if(!data||world<data[0]||META.swords[id]||META.coins<data[1])return;
- META.coins-=data[1];META.swords[id]=1;META.activeWeapon='sword';META.loadout.melee='sword';saveMeta();
- META.swordTier={wood:1,stone:2,iron:3,diamond:4}[id];renderShop();toast('Espada de '+id+' comprada');
+ META.coins-=data[1];META.swords[id]=1;META.activeWeapon='sword';META.loadout.melee='sword';
+ META.swordTier={wood:1,stone:2,iron:3,diamond:4}[id];persistShopPurchase();renderShop();toast('Espada de '+id+' comprada');
 }
-function equipFists(){META.loadout.melee='fist';META.activeWeapon='fist';saveMeta();renderShop()}
-function equipSwordTier(id){if(!META.swords[id])return;META.activeWeapon='sword';META.loadout.melee='sword';META.swordTier={wood:1,stone:2,iron:3,diamond:4}[id];saveMeta();renderShop()}
-function upgradeWeapon(id){id=id||META.loadout.melee;const lv=META.weaponUpgrades[id]||0,cost=60+lv*lv*45;if(lv>=8||META.coins<cost)return;META.coins-=cost;META.weaponUpgrades[id]=lv+1;renderShop();toast(id.toUpperCase()+' mejorada al nivel '+(lv+1))}
-function buyArmor(slot){const [name,color,tier,cost]=armorTier();if(META.coins<cost||META.armor[slot]>=tier)return;META.coins-=cost;META.armor[slot]=tier;META.gems[slot]=null;saveMeta();renderShop();toast(ARMOR_SLOTS.find(x=>x[0]===slot)[1]+' de '+name+' equipado: necesitás volver a comprar la gema')}
-function socketGem(slot,id){const gem=GEM_INFO.find(x=>x[0]===id);if(!gem||!META.armor[slot]||META.coins<gem[3])return;if(META.gems[slot]===id){toast('Esa gema ya está engarzada');return}META.coins-=gem[3];META.gems[slot]=id;if(id==='emerald'){META.maxhp+=5;META.hp=Math.min(META.maxhp,META.hp+5)}renderShop();toast(gem[1]+' engarzado en '+ARMOR_SLOTS.find(x=>x[0]===slot)[1])}
-function buyItem(i){const sh=META.shop,cost={0:50,2:120,3:200}[i];const key={0:'weapon',2:'shield',3:'pet'}[i];if(META.coins<cost||sh[key])return;META.coins-=cost;sh[key]=1;if(i===0){META.sk.dmg+=1;META.activeWeapon='sword';META.loadout.melee='sword'}if(i===2)META.shieldCharges=1;renderShop()}
-function equipSword(){if(META.shop.weapon){META.activeWeapon='sword';META.loadout.melee='sword'}renderShop()}
-function buySkin(id,cost){if(!META.skins)META.skins={default:1};if(META.skins[id]||META.coins<cost)return;META.coins-=cost;META.skins[id]=1;META.skin=id;saveMeta();renderShop();toast('Skin desbloqueada')}
-function equipSkin(id){if(!META.skins||!META.skins[id])return;META.skin=id;saveMeta();renderShop();toast('Skin equipada')}
-function buyMelee(id){const data={doubleblades:[260,5],bat:[150,3],hammer:[320,6]}[id];if(!data||world<data[1]||META.meleeWeapons[id]||META.coins<data[0])return;META.coins-=data[0];META.meleeWeapons[id]=1;META.loadout.melee=id;META.activeWeapon=id;saveMeta();renderShop();toast('Arma comprada')}
-function equipMelee(id){if(!META.meleeWeapons[id])return;META.loadout.melee=id;META.activeWeapon=id;saveMeta();renderShop()}
-function buyThrowable(id){const cost={shuriken:45,grenade:95}[id];if(!cost||META.coins<cost)return;META.coins-=cost;META.throwables[id]=(META.throwables[id]||0)+5;META.loadout.throwable=id;saveMeta();renderShop();toast('Munición comprada')}
-function equipThrowable(id){if(!META.throwables[id])return;META.loadout.throwable=id;saveMeta();renderShop()}
-function buyTurret(){if(META.coins<180)return;META.coins-=180;META.turrets=(META.turrets||0)+1;saveMeta();renderShop();toast('Torreta lista: se coloca con T')}
-function buyWeapon(id){const info=WEAPON_INFO.find(x=>x[0]===id);if(!info||world<info[4]||META.weapons[id]||META.coins<info[3])return;META.coins-=info[3];META.weapons[id]=1;META.activeWeapon=id;META.loadout.ranged=id;saveMeta();renderShop()}
-function equipWeapon(id){if(META.weapons[id]){META.activeWeapon=id;META.loadout.ranged=id;saveMeta();renderShop()}}
+function equipFists(){META.loadout.melee='fist';META.activeWeapon='fist';persistShopPurchase();renderShop()}
+function equipSwordTier(id){if(!META.swords[id])return;META.activeWeapon='sword';META.loadout.melee='sword';META.swordTier={wood:1,stone:2,iron:3,diamond:4}[id];persistShopPurchase();renderShop()}
+function upgradeWeapon(id){id=id||META.loadout.melee;const lv=META.weaponUpgrades[id]||0,cost=60+lv*lv*45;if(lv>=8||META.coins<cost)return;META.coins-=cost;META.weaponUpgrades[id]=lv+1;persistShopPurchase();renderShop();toast(id.toUpperCase()+' mejorada al nivel '+(lv+1))}
+function buyArmor(slot){const [name,color,tier,cost]=armorTier();if(META.coins<cost||META.armor[slot]>=tier)return;META.coins-=cost;META.armor[slot]=tier;META.gems[slot]=null;persistShopPurchase();renderShop();toast(ARMOR_SLOTS.find(x=>x[0]===slot)[1]+' de '+name+' equipado: necesitás volver a comprar la gema')}
+function socketGem(slot,id){const gem=GEM_INFO.find(x=>x[0]===id);if(!gem||!META.armor[slot]||META.coins<gem[3])return;if(META.gems[slot]===id){toast('Esa gema ya está engarzada');return}META.coins-=gem[3];META.gems[slot]=id;if(id==='emerald'){META.maxhp+=5;META.hp=Math.min(META.maxhp,META.hp+5)}persistShopPurchase();renderShop();toast(gem[1]+' engarzado en '+ARMOR_SLOTS.find(x=>x[0]===slot)[1])}
+function buyItem(i){const sh=META.shop,cost={0:50,2:120,3:200}[i];const key={0:'weapon',2:'shield',3:'pet'}[i];if(META.coins<cost||sh[key])return;META.coins-=cost;sh[key]=1;if(i===0){META.sk.dmg+=1;META.activeWeapon='sword';META.loadout.melee='sword'}if(i===2)META.shieldCharges=1;persistShopPurchase();renderShop()}
+function equipSword(){if(META.shop.weapon){META.activeWeapon='sword';META.loadout.melee='sword';persistShopPurchase()}renderShop()}
+function buySkin(id,cost){if(!META.skins)META.skins={default:1};if(META.skins[id]||META.coins<cost)return;META.coins-=cost;META.skins[id]=1;META.skin=id;persistShopPurchase();renderShop();toast('Skin desbloqueada')}
+function equipSkin(id){if(!META.skins||!META.skins[id])return;META.skin=id;persistShopPurchase();renderShop();toast('Skin equipada')}
+function buyMelee(id){const data={doubleblades:[260,5],bat:[150,3],hammer:[320,6]}[id];if(!data||world<data[1]||META.meleeWeapons[id]||META.coins<data[0])return;META.coins-=data[0];META.meleeWeapons[id]=1;META.loadout.melee=id;META.activeWeapon=id;persistShopPurchase();renderShop();toast('Arma comprada')}
+function equipMelee(id){if(!META.meleeWeapons[id])return;META.loadout.melee=id;META.activeWeapon=id;persistShopPurchase();renderShop()}
+function buyThrowable(id){const cost={shuriken:45,grenade:95}[id];if(!cost||META.coins<cost)return;META.coins-=cost;META.throwables[id]=(META.throwables[id]||0)+5;META.loadout.throwable=id;persistShopPurchase();renderShop();toast('Munición comprada')}
+function equipThrowable(id){if(!META.throwables[id])return;META.loadout.throwable=id;persistShopPurchase();renderShop()}
+function buyTurret(){if(META.coins<180)return;META.coins-=180;META.turrets=(META.turrets||0)+1;persistShopPurchase();renderShop();toast('Torreta lista: se coloca con T')}
+function buyWeapon(id){const info=WEAPON_INFO.find(x=>x[0]===id);if(!info||world<info[4]||META.weapons[id]||META.coins<info[3])return;META.coins-=info[3];META.weapons[id]=1;META.activeWeapon=id;META.loadout.ranged=id;persistShopPurchase();renderShop()}
+function equipWeapon(id){if(META.weapons[id]){META.activeWeapon=id;META.loadout.ranged=id;persistShopPurchase();renderShop()}}
 
 function switchWeaponSlot(){
  const owned=Object.keys(META.weapons).filter(k=>META.weapons[k]);
