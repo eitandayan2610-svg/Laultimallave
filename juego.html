@@ -417,7 +417,7 @@ if(AC&&AC.state=='suspended')AC.resume()}
 function applyVol(which,v){v=Number(v);VOL[which]=v/100;
 const el=document.getElementById('vol'+which.charAt(0).toUpperCase()+which.slice(1)+'Val');if(el)el.textContent=v+'%';
 if(!AC)return;
-if(which=='master')masterG.gain.value=VOL.master;
+if(which=='master')masterG.gain.value=musicOn?VOL.master:0;
 if(which=='music')musicG.gain.value=VOL.music;
 if(which=='sfx')sfxG.gain.value=VOL.sfx;
 if(which=='amb')ambG.gain.value=VOL.amb;
@@ -440,33 +440,30 @@ gameOver(){[392,330,262,196].forEach((f,i)=>beep(f,.3,'triangle',.1,AC?AC.curren
 boss(){[110,110,146,110].forEach((f,i)=>beep(f,.2,'sawtooth',.09,AC?AC.currentTime+i*.18:0,null,enemyG))},
 bossFinal(){[82,82,110,82,110,147].forEach((f,i)=>beep(f,.25,'sawtooth',.11,AC?AC.currentTime+i*.16:0,null,enemyG))},
 level(){[523,659,784,1046,1318].forEach((f,i)=>beep(f,.14,'square',.07,AC?AC.currentTime+i*.09:0))}};
-function toggleSound(){musicOn=!musicOn;ensureAudio();
+function toggleSound(){musicOn=!musicOn;ensureAudio();if(masterG)masterG.gain.value=musicOn?VOL.master:0;
 const label=musicOn?'🔊 SONIDO: ON':'🔇 SONIDO: OFF';
 ['soundBtn','soundMenuBtn','soundPauseBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=label});
 if(musicOn){startMusic();startAmbience()}else{stopMusic();stopAmbience()}}
 function startMusic(){if(!AC||!musicOn||musicTimer)return;
-// Ambientación tenebrosa: motivo menor/diminuto lento, drones graves y ecos suaves.
-const motif=[55,58.27,65.41,61.74,55,82.41,77.78,65.41,58.27,55,73.42,61.74],bass=[27.5,29.14,32.70,30.87];
+// Banda sonora oscura y claramente audible: motivo lento en rango medio, drones y ecos.
+const motif=[110,116.54,130.81,123.47,110,164.81,155.56,130.81,116.54,110,146.83,123.47];
+const bass=[55,58.27,65.41,61.74];
 const playTone=(freq,t,dur,volume,wave,cutoff,detune)=>{
  const o=AC.createOscillator(),filter=AC.createBiquadFilter(),gain=AC.createGain();
  o.type=wave||'triangle';o.frequency.setValueAtTime(freq,t);o.detune.value=detune||0;
- filter.type='lowpass';filter.frequency.setValueAtTime(cutoff||520,t);filter.Q.value=.7;
- gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(volume,t+.16);gain.gain.setValueAtTime(volume,t+Math.max(.2,dur-.28));gain.gain.exponentialRampToValueAtTime(.0001,t+dur);
+ filter.type='lowpass';filter.frequency.setValueAtTime(cutoff||800,t);filter.Q.value=.8;
+ gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(volume,t+.12);gain.gain.setValueAtTime(volume,t+Math.max(.15,dur-.25));gain.gain.exponentialRampToValueAtTime(.0001,t+dur);
  o.connect(filter);filter.connect(gain);gain.connect(musicG);o.start(t);o.stop(t+dur+.03);
 };
-// The low, quiet drone makes the melody feel ominous without drowning out game sounds.
-playTone(27.5,AC.currentTime,3.8,.027,'sine',115,0);
 let beat=0;
-musicTimer=setInterval(()=>{if(!AC||!musicOn)return;
- const t=AC.currentTime,n=motif[beat%motif.length];
- playTone(n,t,1.72,.018,'triangle',430,beat%2?-7:6);
- // A wavering fifth below adds a hollow, uneasy harmony.
- if(beat%3!==2)playTone(n*.5,t+.08,1.9,.013,'sine',190,-3);
- // Sparse bell-like high notes decay into the cave-like ambience.
- if(beat%4===2)playTone(n*4.01,t+.16,2.15,.006,'sine',1250,beat%2?9:-11);
- if(beat%4===0)playTone(bass[(beat/4)%bass.length|0],t,3.4,.031,'sine',125,0);
- beat++;musicStep++;
-},1450)}
+const step=()=>{if(!AC||!musicOn)return;const t=AC.currentTime,n=motif[beat%motif.length];
+ playTone(n,t,1.55,.075,'triangle',1000,beat%2?-8:7);
+ playTone(n*1.5,t+.06,1.9,.024,'sine',1600,beat%2?11:-9);
+ if(beat%2===0)playTone(n*.5,t+.02,2.25,.048,'sine',280,-4);
+ if(beat%4===0)playTone(bass[(beat/4)%bass.length|0],t,3.7,.070,'sine',190,0);
+ if(beat%3===1)playTone(n*2.01,t+.18,2.1,.025,'sine',1800,beat%2?13:-13);
+ beat++;musicStep++};
+ step();musicTimer=setInterval(step,1550)}
 function stopMusic(){if(musicTimer){clearInterval(musicTimer);musicTimer=null}}
 function startAmbience(){if(!AC||!musicOn||ambTimer)return;
 ambTimer=setInterval(()=>{if(!AC||!musicOn)return;
@@ -476,6 +473,11 @@ gn.gain.setValueAtTime(.02,t);gn.gain.exponentialRampToValueAtTime(.001,t+1.2);
 o.connect(gn);gn.connect(ambG);o.start(t);o.stop(t+1.3)},2000)}
 function stopAmbience(){if(ambTimer){clearInterval(ambTimer);ambTimer=null}}
 let audioWasPlayingBeforeHide=false;
+// Browsers móviles bloquean audio automático; iniciar la música con la primera interacción.
+function startAudioFromGesture(){ensureAudio();if(musicOn){startMusic();startAmbience()}}
+document.addEventListener('pointerdown',startAudioFromGesture,{capture:true,once:true,passive:true});
+document.addEventListener('keydown',startAudioFromGesture,{capture:true,once:true});
+
 document.addEventListener('visibilitychange',()=>{
  if(document.hidden){if(S&&!paused)saveGame(true);
   audioWasPlayingBeforeHide=!!(musicOn&&AC&&AC.state==='running');
@@ -563,7 +565,7 @@ async function importGameFile(input){
  }catch(err){console.warn('No se pudo importar la partida',err);toast(err.message||'No se pudo abrir ese archivo.')}finally{if(input)input.value=''}
 }
 function loadGame(){try{document.getElementById('spectatorFlight').style.display='none';const raw=localStorage.getItem(GAME_SAVE_KEY)||localStorage.getItem('laUltimaLlave_run_v1');if(!raw){toast('No hay partida guardada');return false}const d=JSON.parse(raw);if(!d||!d.S||!d.META||!d.S.player)throw new Error('Guardado inválido');S=d.S;if((S.hazards||[]).some(h=>h.type==='lava'&&!h.pit))configureLavaPits(S,GY());world=Math.max(1,Math.min(WORLDS.length,Number(d.world)||1));level=Math.max(1,Math.min(5,Number(d.level)||1));difficulty=Math.max(0,Math.min(DIFFS.length-1,Number(d.difficulty)||0));mergeMeta(META,d.META);META.loadout=Object.assign({melee:'fist',ranged:null,throwable:null},META.loadout||{});RUN=d.RUN||RUN;spectator=!!d.spectator;gameMode=d.gameMode||'solo';paused=false;customizeMode=false;creativeEditing=false;document.getElementById('creativeToolbar').style.display='none';document.querySelectorAll('.overlay').forEach(el=>el.classList.add('hide'));setControlsVisibility(true);ensureAudio();startMusic();startAmbience();saveMeta();toast('Partida cargada correctamente');return true}catch(err){console.warn(err);toast('No se pudo cargar la partida guardada');return false}}
-function goMenu(){settingsFrom='menu';setControlsVisibility(false);paused=false;spectator=false;document.getElementById('spectatorFlight').style.display='none';stopMusic();stopAmbience();showScreen('menu');S=null}
+function goMenu(){settingsFrom='menu';setControlsVisibility(false);paused=false;spectator=false;document.getElementById('spectatorFlight').style.display='none';if(musicOn&&AC){startMusic();startAmbience()}showScreen('menu');S=null}
 function togglePause(){if(!S||customizeMode)return;if(['settings','advancedGate','advancedSettings','customize','stats','skilltree','shop','end'].some(id=>{const el=document.getElementById(id);return el&&!el.classList.contains('hide')}))return;paused=!paused;document.getElementById('pause').classList.toggle('hide',!paused)}
 function openStats(from){paused=true;document.getElementById('pause').classList.add('hide');const st=document.getElementById('stats');st.classList.remove('hide');
 document.getElementById('statsSub').textContent=from=='death'?'Partida perdida':'Partida en curso';
