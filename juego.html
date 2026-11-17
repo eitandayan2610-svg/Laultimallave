@@ -69,7 +69,7 @@ h1,h2,.main,#pauseBtn,#soundBtn,#doneBtn{font-family:'Press Start 2P',monospace}
 
 /* Adaptación móvil: controles táctiles cómodos y sin tapar el área de juego */
 #controls{pointer-events:none;touch-action:none}
-#controls .btn{pointer-events:auto;touch-action:none}
+#controls .btn,#controls #moveStick{pointer-events:auto;touch-action:none}
 @media (pointer:coarse), (max-width:800px){
   #controls{padding:0 9px;bottom:calc(env(safe-area-inset-bottom) + 8px);gap:8px}
   .pad{width:116px;height:116px}
