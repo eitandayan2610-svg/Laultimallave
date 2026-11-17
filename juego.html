@@ -1209,17 +1209,25 @@ for(let i=0;i<5;i++){const x=-13+i*6.5;g.fillStyle='#cce979';g.beginPath();g.mov
 if(snap>.88){g.globalAlpha=.8;g.fillStyle='#e7f798';g.fillRect(-22,headY-1,3,2);g.fillRect(20,headY-2,3,2);g.globalAlpha=1}
 g.restore()}
 else if(e.type=='bat'){
-g.save();g.scale(fx,1);
-const wing=Math.sin(e.anim*3)*6;
-g.fillStyle=e.hurt>0?'#fff':'#3a2a4a';
-g.beginPath();g.moveTo(0,7);g.lineTo(-16,7-wing);g.lineTo(-10,10);g.closePath();g.fill();
-g.beginPath();g.moveTo(0,7);g.lineTo(16,7-wing);g.lineTo(10,10);g.closePath();g.fill();
-g.fillStyle=e.hurt>0?'#fff':'#2a1a3a';
-g.beginPath();g.arc(0,7,7,0,7);g.fill();
-g.fillStyle='#ff5a4a';g.fillRect(-3,5,2,2);g.fillRect(2,5,2,2);
-g.fillStyle='#e8e4c8';g.beginPath();g.moveTo(-4,2);g.lineTo(-2,-3);g.lineTo(0,2);g.closePath();g.fill();
-g.beginPath();g.moveTo(2,2);g.lineTo(4,-3);g.lineTo(6,2);g.closePath();g.fill();
-g.restore()}
+g.save();g.translate(e.w/2,7+bob);g.scale(fx,1);
+const flap=Math.sin(e.anim*3.1),lift=flap*9,mem=e.hurt>0?'#fff':'#503050',memHi=e.hurt>0?'#fff':'#8a426f',body=e.hurt>0?'#fff':'#21192f';
+// Large scalloped wings with separate finger bones and plum-colored membranes.
+g.fillStyle=mem;g.beginPath();g.moveTo(-3,0);g.lineTo(-13,-9-lift*.55);g.lineTo(-22,-16-lift);g.lineTo(-19,-3-lift*.4);g.lineTo(-23,1);g.lineTo(-17,4);g.lineTo(-18,10);g.lineTo(-10,7);g.lineTo(-6,11);g.closePath();g.fill();
+g.beginPath();g.moveTo(3,0);g.lineTo(13,-9-lift*.55);g.lineTo(22,-16-lift);g.lineTo(19,-3-lift*.4);g.lineTo(23,1);g.lineTo(17,4);g.lineTo(18,10);g.lineTo(10,7);g.lineTo(6,11);g.closePath();g.fill();
+g.strokeStyle=memHi;g.lineWidth=1.6;g.lineCap='round';g.beginPath();g.moveTo(-3,1);g.lineTo(-21,-15-lift);g.moveTo(-2,2);g.lineTo(-18,-2-lift*.4);g.moveTo(-2,3);g.lineTo(-16,8);g.moveTo(3,1);g.lineTo(21,-15-lift);g.moveTo(2,2);g.lineTo(18,-2-lift*.4);g.moveTo(2,3);g.lineTo(16,8);g.stroke();
+// Tiny hooked feet, furred belly and shoulders.
+g.strokeStyle=body;g.lineWidth=2;g.beginPath();g.moveTo(-4,8);g.lineTo(-6,12);g.lineTo(-9,13);g.lineTo(-8,10);g.moveTo(4,8);g.lineTo(6,12);g.lineTo(9,13);g.lineTo(8,10);g.stroke();
+g.fillStyle=body;g.beginPath();g.ellipse(0,3,7,9,0,0,Math.PI*2);g.fill();
+g.fillStyle=e.hurt>0?'#fff':'#49304b';g.beginPath();g.ellipse(0,7,4,5,0,0,Math.PI*2);g.fill();
+g.fillStyle=e.hurt>0?'#fff':'#af6482';g.beginPath();g.ellipse(0,6,2.2,4,.1,0,Math.PI*2);g.fill();
+// Head, oversized pointed ears, glowing scarlet eyes and ivory fangs.
+g.fillStyle=body;g.beginPath();g.arc(0,-4,7,0,Math.PI*2);g.fill();
+g.beginPath();g.moveTo(-5,-8);g.lineTo(-8,-16);g.lineTo(-1,-10);g.closePath();g.fill();g.beginPath();g.moveTo(5,-8);g.lineTo(8,-16);g.lineTo(1,-10);g.closePath();g.fill();
+g.fillStyle=e.hurt>0?'#fff':'#b65974';g.beginPath();g.moveTo(-5,-9);g.lineTo(-6.5,-13);g.lineTo(-2,-9.5);g.closePath();g.fill();g.beginPath();g.moveTo(5,-9);g.lineTo(6.5,-13);g.lineTo(2,-9.5);g.closePath();g.fill();
+g.fillStyle='#ff293d';g.shadowColor='#ff253c';g.shadowBlur=6;g.beginPath();g.ellipse(-2.8,-4,2.1,1.5,0,0,Math.PI*2);g.ellipse(2.8,-4,2.1,1.5,0,0,Math.PI*2);g.fill();g.shadowBlur=0;
+g.fillStyle='#190d20';g.fillRect(-3,-5,1,2);g.fillRect(2,-5,1,2);
+g.fillStyle='#f5e5d1';g.beginPath();g.moveTo(-4,0);g.lineTo(-2,5);g.lineTo(-1,0);g.closePath();g.fill();g.beginPath();g.moveTo(1,0);g.lineTo(2,5);g.lineTo(4,0);g.closePath();g.fill();
+g.fillStyle='#ff7580';g.beginPath();g.arc(0,-1,1.2,0,Math.PI*2);g.fill();g.restore()}
 else if(e.type=='spitter'){
 g.save();g.scale(fx,1);
 g.fillStyle=e.hurt>0?'#fff':'#3a6a3a';
@@ -1233,21 +1241,29 @@ g.fillRect(-4,30,4,6+step);g.fillRect(6,30,4,6-step);
 g.fillStyle='#7dff9e';g.beginPath();g.arc(10,10,3,0,7);g.fill();
 g.restore()}
 else if(e.type=='brute'){
-g.save();g.scale(fx,1);
-g.fillStyle=e.hurt>0?'#fff':'#5a3a2a';
-g.fillRect(-6,4,28,26);
-g.fillStyle=e.hurt>0?'#fff':'#6a4a3a';
-g.beginPath();g.arc(8,0,10,0,7);g.fill();
-g.fillStyle='#ff5a4a';g.fillRect(4,-3,4,3);g.fillRect(11,-3,4,3);
-g.fillStyle='#e8e4c8';g.fillRect(5,3,3,3);g.fillRect(12,3,3,3);
-g.fillStyle=e.hurt>0?'#fff':'#5a3a2a';
-g.fillRect(-12,8,8,6);g.fillRect(20,8,8,6);
-g.fillStyle='#e8e4c8';
-g.beginPath();g.arc(-14,12,3,0,7);g.fill();
-g.beginPath();g.arc(26,12,3,0,7);g.fill();
-g.fillStyle=e.hurt>0?'#fff':'#5a3a2a';
-g.fillRect(-2,30,7,12+step);g.fillRect(12,30,7,12-step);
-g.restore()}
+g.save();g.translate(e.w/2,0);g.scale(fx,1);
+const walk=Math.sin(e.anim*1.7),rock=e.hurt>0?'#fff':'#70452f',shade=e.hurt>0?'#fff':'#432a29',lit=e.hurt>0?'#fff':'#a66b43';
+// Heavy hunched body, shoulder plates and a ragged back ridge.
+g.fillStyle=shade;g.beginPath();g.ellipse(0,25,18,17,0,0,Math.PI*2);g.fill();
+g.fillStyle=rock;g.beginPath();g.moveTo(-15,27);g.lineTo(-16,12);g.lineTo(-9,7);g.lineTo(2,9);g.lineTo(14,15);g.lineTo(16,31);g.lineTo(10,37);g.lineTo(-11,36);g.closePath();g.fill();
+g.fillStyle=lit;g.beginPath();g.moveTo(-12,17);g.lineTo(-7,11);g.lineTo(-3,22);g.lineTo(-9,31);g.closePath();g.fill();g.fillStyle=shade;g.beginPath();g.moveTo(4,13);g.lineTo(12,17);g.lineTo(13,29);g.lineTo(6,32);g.closePath();g.fill();
+// Pebbled armor, scars and a spined shoulder ridge.
+g.fillStyle=lit;for(const [x,y,r] of [[-11,22,2],[7,19,2.5],[-5,31,2],[10,29,1.8]]){g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill()}
+g.fillStyle=shade;for(let i=0;i<5;i++){const x=-12+i*6;g.beginPath();g.moveTo(x,13);g.lineTo(x+2,6-(i%2)*3);g.lineTo(x+5,15);g.closePath();g.fill()}
+// Thick swinging arms with stone-like fists and hooked claws.
+g.strokeStyle=shade;g.lineWidth=9;g.lineCap='round';g.beginPath();g.moveTo(-11,18);g.lineTo(-19,25+walk*2);g.lineTo(-21,32+walk*2);g.moveTo(11,18);g.lineTo(19,24-walk*2);g.lineTo(21,31-walk*2);g.stroke();
+g.fillStyle=rock;g.beginPath();g.arc(-21,32+walk*2,6,0,Math.PI*2);g.arc(21,31-walk*2,6,0,Math.PI*2);g.fill();
+g.fillStyle='#ead8c2';for(const side of [-1,1]){g.beginPath();g.moveTo(side*23,34+walk*2);g.lineTo(side*29,38+walk*2);g.lineTo(side*22,37+walk*2);g.closePath();g.fill()}
+// Stout legs and broad feet with a lumbering step.
+g.fillStyle=shade;g.fillRect(-12,35,9,7+walk*2);g.fillRect(3,35,9,7-walk*2);g.fillStyle=rock;g.fillRect(-15,40+walk*2,13,4);g.fillRect(2,40-walk*2,14,4);
+// Squashed head, brow ridges, glowing red eyes, nostrils and two tusks.
+g.fillStyle=rock;g.beginPath();g.ellipse(2,4,14,12,-.08,0,Math.PI*2);g.fill();
+g.fillStyle=shade;g.beginPath();g.moveTo(-12,1);g.lineTo(-7,-5);g.lineTo(1,-7);g.lineTo(12,-2);g.lineTo(11,2);g.lineTo(-1,0);g.closePath();g.fill();
+g.fillStyle='#ff2438';g.shadowColor='#ff102a';g.shadowBlur=8;g.beginPath();g.ellipse(-4,3,2.6,1.8,-.15,0,Math.PI*2);g.ellipse(6,3,2.6,1.8,.15,0,Math.PI*2);g.fill();g.shadowBlur=0;
+g.fillStyle='#1d1019';g.fillRect(-5,2,1,3);g.fillRect(5,2,1,3);
+g.fillStyle=shade;g.beginPath();g.ellipse(2,8,6,4,0,0,Math.PI*2);g.fill();g.fillStyle='#1b1118';g.fillRect(-2,7,2,2);g.fillRect(4,7,2,2);
+g.fillStyle='#f0dfc4';g.beginPath();g.moveTo(-8,7);g.lineTo(-6,14);g.lineTo(-3,8);g.closePath();g.fill();g.beginPath();g.moveTo(8,7);g.lineTo(6,14);g.lineTo(3,8);g.closePath();g.fill();
+g.strokeStyle=lit;g.lineWidth=1.2;g.beginPath();g.moveTo(-11,-1);g.lineTo(-8,-3);g.moveTo(10,0);g.lineTo(8,-2);g.stroke();g.restore()}
 else if(e.type=='skeleton'||e.type=='armoredSkeleton'){
 g.save();g.scale(fx,1);
 const armored=e.type==='armoredSkeleton',bone=e.hurt>0?'#fff':(armored?'#b8c6d0':'#f1e6ce'),shade=armored?'#526779':'#b9a98d',dark='#17131a';
