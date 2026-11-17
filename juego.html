@@ -572,12 +572,12 @@ async function importGameFile(input){
   const loaded=loadGame();if(!loaded)throw new Error('No pude abrir la partida guardada en el archivo.');toast('¡Partida cargada desde el archivo!')
  }catch(err){console.warn('No se pudo importar la partida',err);toast(err.message||'No se pudo abrir ese archivo.')}finally{if(input)input.value=''}
 }
-function loadGame(){try{document.getElementById('spectatorFlight').style.display='none';const raw=localStorage.getItem(GAME_SAVE_KEY)||localStorage.getItem('laUltimaLlave_run_v1');if(!raw){toast('No hay partida guardada');return false}const d=JSON.parse(raw);if(!d||!d.S||!d.META||!d.S.player)throw new Error('Guardado inválido');S=d.S;
+function loadGame(){try{document.getElementById('spectatorFlight').style.display='none';const raw=localStorage.getItem(GAME_SAVE_KEY)||localStorage.getItem('laUltimaLlave_run_v1');if(!raw){toast('No hay partida guardada');return false}const d=JSON.parse(raw);if(!d||!d.S||!d.META||!d.S.player)throw new Error('Guardado inválido');S=d.S;S.roomMode=!!(S.dungeonRoom&&S.dungeonRoom.planeVersion===2&&S.dungeonRoom.active&&S.dungeonRoom.savedPlayer);
 // Convert previous main-level lava pits into solid ground without touching player progress.
 for(const h of S.hazards||[])if(h.type==='lava'&&h.pit&&Number.isFinite(h.baseY))S.platforms.push({x:h.x,y:h.baseY,w:h.w,h:100,solid:true,ground:true});
 S.hazards=(S.hazards||[]).filter(h=>h.type!=='lava');
 // Replace the earlier experimental chamber when resuming an older save.
-if(!S.dungeonRoom||!Array.isArray(S.dungeonRoom.stations)||!Number.isInteger(S.dungeonRoom.kind)){
+if(!S.dungeonRoom||S.dungeonRoom.planeVersion!==2){S.roomMode=false;
  const old=S.dungeonRoom;if(old&&Number.isFinite(old.roomX)&&Number.isFinite(old.roomY)){S.platforms=S.platforms.filter(pl=>!(Math.abs(pl.y-old.roomY)<1&&(Math.abs(pl.x-old.roomX)<1||Math.abs(pl.x-old.roomX-198)<1))&&!(pl.moving&&(pl.baseX===old.roomX+94||pl.baseX===old.roomX+103))&&!(Math.abs(pl.y-(old.roomY-128))<1&&pl.x===old.roomX+202));if(old.active&&S.player){S.player.x=old.entryX||70;S.player.y=GY()-S.player.h;S.player.vy=0}}
  S.dungeonRoom=makeRoguelikeRoom(GY());S.props=(S.props||[]).filter(o=>Math.abs(o.x-S.dungeonRoom.entryX)>58);
 }
@@ -739,26 +739,127 @@ function configureLavaPits(state,gy){
  if(cursor<right)state.platforms.push({x:cursor,y:gy,w:right-cursor,h:100,solid:true,ground:true});
 }
 function makeRoguelikeRoom(gy){
- const x=220,floor=gy-205,w=360,kind=(world+level-2)%4;
- const stations=kind===3?[{x:x+60,y:floor-64,label:'A'},{x:x+180,y:floor-125,label:'B'},{x:x+302,y:floor-64,label:'C'}]:[{x:x+72,y:floor,label:'①'},{x:x+190,y:floor,label:'②'},{x:x+310,y:floor,label:'③'}];
- const safe=(world*3+level)%3;
- const hint=['Pista: activá los símbolos de izquierda a derecha.','Pista: encontrá los tres cristales; el orden no importa.','Pista: la puerta segura es la '+['izquierda','del centro','derecha'][safe]+'.','Pista: subí por la plataforma móvil y alcanzá A, B y C.'];
- return{entryX:x+22,roomX:x,roomY:floor,w,active:false,kind,progress:0,solved:false,symbols:['①','②','③'],stations,safe,hint, platformsBuilt:false};
+ const kind=Math.floor(Math.random()*4),width=1120,floor=H-72,seed=Math.random(),jitter=()=>Math.round((Math.random()-.5)*56);
+ const palette=[['#100d1e','#281943','#ba8dff'],['#071a22','#103b47','#67eaff'],['#20130e','#49301d','#ffc36c'],['#081622','#142d44','#8de4ff']][kind];
+ const room={planeVersion:2,kind,width,floor,seed,palette,entryX:220,roomX:0,active:false,solved:false,progress:0,savedPlayer:null,savedCam:0,platforms:[],stations:[],collectibles:[],decor:[],doorSymbols:['☾','☀','✦'], safeDoor:Math.floor(Math.random()*3)};
+ // Every run gets a fresh, visibly different room layout, not just a different answer.
+ const groundY=floor;
+ room.platforms.push({x:0,y:groundY,w:width,h:180,solid:true});
+ const layout=kind===3?4:1+Math.floor(Math.random()*3);
+ for(let i=0;i<layout;i++){
+  const x=135+i*245+jitter(), y=groundY-75-Math.random()*115,w=92+Math.random()*70;
+  room.platforms.push({x,y,w,h:14,solid:false,moving:(kind===3||Math.random()<.35)?1:0,baseX:x,range:kind===3?34+Math.random()*28:18+Math.random()*30,phase:Math.random()*6});
+ }
+ if(kind===0){
+  const xs=[205+jitter(),540+jitter(),870+jitter()];
+  room.stations=xs.map((x,i)=>({x,y:groundY-18,label:['LUNA','SOL','ESTRELLA'][i],symbol:['☾','☀','✦'][i],id:i}));
+  room.order=[0,1,2].sort(()=>Math.random()-.5);room.hint='Tocá los tótems en orden: '+room.order.map(i=>room.stations[i].symbol).join(' → ');
+ }else if(kind===1){
+  const xs=[180+jitter(),490+jitter(),800+jitter()];room.collectibles=xs.map((x,i)=>({x,y:groundY-42-Math.random()*44,got:false,symbol:['✦','◆','✧'][i]}));
+  room.hint='Buscá y tocá los 3 cristales. El orden no importa.';
+ }else if(kind===2){
+  const xs=[230,560,890].map(x=>x+jitter());room.doors=xs.map((x,i)=>({x,symbol:room.doorSymbols[i],safe:i===room.safeDoor}));
+  room.hint='Acertijo: la salida segura tiene el símbolo '+room.doors[room.safeDoor].symbol+'.';
+ }else{
+  room.stations=[{x:215,y:groundY-90,label:'A',symbol:'A',id:0},{x:560,y:groundY-145,label:'B',symbol:'B',id:1},{x:900,y:groundY-90,label:'C',symbol:'C',id:2}];
+  // Ensure each beacon sits over a reachable platform.
+  room.platforms.push({x:150,y:groundY-70,w:150,h:14,solid:false,moving:1,baseX:150,range:26,phase:.4},{x:475,y:groundY-125,w:170,h:14,solid:false,moving:1,baseX:475,range:28,phase:2},{x:820,y:groundY-70,w:170,h:14,solid:false,moving:1,baseX:820,range:24,phase:4});
+  room.hint='Subí por las plataformas móviles y activá las balizas A, B y C.';
+ }
+ for(let i=0;i<34;i++)room.decor.push({x:Math.random()*width,y:25+Math.random()*(groundY-90),r:1+Math.random()*3,a:.2+Math.random()*.55});
+ return room;
 }
-function buildDungeonPlatforms(r){
- if((S.platforms||[]).some(pl=>pl.dungeon))return;
- const f=r.roomY,x=r.roomX;S.platforms.push({x,y:f,w:112,h:16,solid:true,dungeon:1},{x:x+198,y:f,w:162,h:16,solid:true,dungeon:1});
- if(r.kind===3){S.platforms.push({x:x+28,y:f-64,w:82,h:12,solid:false,dungeon:1,moving:1,baseX:x+28,range:22,phase:0});S.platforms.push({x:x+138,y:f-125,w:82,h:12,solid:false,dungeon:1,moving:1,baseX:x+138,range:20,phase:2});S.platforms.push({x:x+268,y:f-64,w:82,h:12,solid:false,dungeon:1,moving:1,baseX:x+268,range:22,phase:4});}
- else S.platforms.push({x:x+125,y:f-68,w:110,h:12,solid:false,dungeon:1,moving:1,baseX:x+125,range:30,phase:0});r.platformsBuilt=true;
+function enterRoguelikePlane(){const r=S.dungeonRoom,p=S.player;if(!r||r.active)return;r.savedPlayer={...p};r.savedCam=S.cam;r.active=true;S.roomMode=true;S.cam=0;p.x=58;p.y=r.floor-p.h;p.vx=p.vy=0;p.onGround=1;p.jumps=0;r.transition=24;toast('Entraste en otra dimensión. La cámara de esta partida es única.');saveGame(true);}
+function leaveRoguelikePlane(){const r=S.dungeonRoom,p=S.player;if(!r||!r.active)return;r.active=false;S.roomMode=false;if(r.savedPlayer)Object.assign(p,r.savedPlayer);S.cam=r.savedCam||0;r.savedPlayer=null;r.transition=20;toast('Volviste al nivel.');saveGame(true);}
+function moveInRoguelikePlane(p,dx,dy,r){const px=p.x,py=p.y;p.x+=dx;p.y+=dy;p.onGround=false;for(const pl of r.platforms){if(!(p.x+p.w>pl.x&&p.x<pl.x+pl.w))continue;if(p.y+p.h>pl.y&&p.y<pl.y+pl.h){const wasAbove=py+p.h<=pl.y+1;if(wasAbove&&dy>=0){p.y=pl.y-p.h;p.vy=0;p.onGround=true;p.jumps=0}else if(!pl.solid){if(dy>=0&&py+p.h<=pl.y+2&&p.y+p.h>=pl.y){p.y=pl.y-p.h;p.vy=0;p.onGround=true;p.jumps=0}}else if(px+p.w<=pl.x)p.x=pl.x-p.w;else if(px>=pl.x+pl.w)p.x=pl.x+pl.w;}}
+ p.x=Math.max(0,Math.min(r.width-p.w,p.x));if(p.y>H+100){p.x=50;p.y=r.floor-p.h;p.vy=0;p.jumps=0;toast('Volviste al comienzo de la sala.');}}
+function updateRoguelikePlane(){const r=S.dungeonRoom,p=S.player;S.t++;if(toastT>0)toastT--;if(r.transition>0)r.transition--;
+ const wasGround=p.onGround;p.vx=(input.right-input.left)*playerSpeed();if(input.right)p.face=1;if(input.left)p.face=-1;p.vy+=GRAV;
+ if((input.jump&&!jumpHeld)||pressed.jump){if(wasGround){p.vy=JUMP*.96;p.jumps=1;p.onGround=0;SFX.jump()}else if(p.jumps<maxJumps()){p.vy=JUMP*djPower();p.jumps++;SFX.jump()}}if(!input.jump)jumpHeld=false;
+ for(const pl of r.platforms)if(pl.moving){const oldX=pl.x;pl.phase=(pl.phase||0)+.035;pl.x=pl.baseX+Math.sin(pl.phase)*pl.range;const delta=pl.x-oldX;if(wasGround&&Math.abs(p.y+p.h-pl.y)<3&&p.x+p.w>oldX&&p.x<oldX+pl.w)p.x+=delta;}
+ moveInRoguelikePlane(p,p.vx,p.vy,r);p.anim+=Math.abs(p.vx)*.13+.03;
+ if(r.kind===1){for(const c of r.collectibles){if(!c.got&&Math.abs(p.x+p.w/2-c.x)<22&&Math.abs(p.y+p.h-c.y)<35){c.got=true;r.progress++;SFX.coin();burst(c.x,c.y,'#64efff',12);toast('Cristal '+r.progress+'/3');if(r.progress===3)solveRoguelikePlane(r)}}}
+ if(pressed.use){if(p.x<100){leaveRoguelikePlane()}else if(!r.solved&&r.kind===0){const i=r.stations.findIndex(s=>Math.abs(p.x+p.w/2-s.x)<40&&Math.abs(p.y+p.h-s.y)<50);if(i>=0){if(i===r.order[r.progress]){r.progress++;SFX.coin();burst(r.stations[i].x,r.stations[i].y-20,'#c49cff',10);toast('Tótem activado '+r.progress+'/3');if(r.progress===3)solveRoguelikePlane(r)}else{r.progress=0;SFX.hit();toast('Ese tótem no va ahora. Pista: '+r.hint)}}}
+ else if(!r.solved&&r.kind===2){const d=r.doors.find(d=>Math.abs(p.x+p.w/2-d.x)<48);if(d){if(d.safe)solveRoguelikePlane(r);else{r.progress=0;p.x=48;toast('Puerta falsa: te devolvió al comienzo. '+r.hint)}}}
+ else if(!r.solved&&r.kind===3){const i=r.stations.findIndex(s=>Math.abs(p.x+p.w/2-s.x)<48&&Math.abs(p.y+p.h-s.y)<55);if(i>=0&&!r.activated?.[i]){r.activated=r.activated||[false,false,false];r.activated[i]=true;r.progress++;SFX.coin();burst(r.stations[i].x,r.stations[i].y,'#87eaff',12);toast('Baliza '+r.stations[i].label+' activada · '+r.progress+'/3');if(r.progress===3)solveRoguelikePlane(r)}}
+ else if(r.solved&&Math.abs(p.x+p.w/2-(r.width-90))<55)leaveRoguelikePlane();pressed.use=0;}
+ if(!S.roomMode)return;
+ if(S.t%600===0)saveGame(true);S.cam+=(p.x-W*.42-S.cam)*.13;S.cam=Math.max(0,Math.min(r.width-W,S.cam));pressed.jump=0;pressed.atk=0;pressed.skill=0;pressed.shoot=0;pressed.throw=0;
 }
-function leaveDungeonRoom(r){S.platforms=S.platforms.filter(pl=>!pl.dungeon);for(const it of S.items||[])if(it.dungeonReward)it.hidden=true;r.platformsBuilt=false;r.active=false;const p=S.player;p.x=r.entryX-10;p.y=GY()-p.h;p.vy=0;p.vx=0;toast('Saliste de la cámara secreta')}
-function solveDungeonRoom(r){if(r.solved)return;r.solved=true;const reward=chest(r.roomX+r.w-64,r.roomY,'gold');reward.dungeonReward=true;S.items.push(reward);SFX.chest();toast('¡ACERTIJO RESUELTO! Mecanismo abierto y cofre dorado')}
-function activateDungeonStation(r,p,i){const s=r.stations[i];if(!s||Math.abs(p.x+p.w/2-s.x)>38||Math.abs(p.y+p.h-s.y)>46)return false;
- if(r.kind===0){const order=[0,1,2];if(i===order[r.progress]){r.progress++;SFX.coin();burst(s.x,s.y-18,'#9f7fff',8);toast('Interruptor '+r.progress+'/3');if(r.progress===3)solveDungeonRoom(r)}else{r.progress=0;SFX.hit();toast('No es ese orden. '+r.hint)}return true}
- if(r.kind===1){if(!r.collected)r.collected=[0,0,0];if(!r.collected[i]){r.collected[i]=1;r.progress++;SFX.coin();burst(s.x,s.y-20,'#62e8ff',12);toast('Cristal '+r.progress+'/3');if(r.progress===3)solveDungeonRoom(r)}return true}
- if(r.kind===2){if(i===r.safe)solveDungeonRoom(r);else{SFX.hit();toast('Esa puerta está cerrada. '+r.hint)}return true}
- if(r.kind===3){if(!r.activated)r.activated=[0,0,0];if(!r.activated[i]){r.activated[i]=1;r.progress++;SFX.coin();burst(s.x,s.y-18,'#9f7fff',10);toast('Baliza '+s.label+' activada · '+r.progress+'/3');if(r.progress===3)solveDungeonRoom(r)}return true}return false;
+function solveRoguelikePlane(r){if(r.solved)return;r.solved=true;SFX.chest();toast('¡Acertijo resuelto! Llegá a la puerta de salida.');burst(S.player.x+11,S.player.y,'#ffd75e',18);}
+function drawPlaneAvatar(){
+const p=S.player,walking=Math.abs(p.vx)>.1,fr=Math.floor(p.anim)%4;
+// Caminar, salto y respiración: sólo afecta el dibujo, no las colisiones.
+const stride=walking&&p.onGround?Math.sin(p.anim*1.45):0;
+const bob=walking&&p.onGround?-Math.abs(stride)*1.6:(p.onGround?Math.sin(S.t*.06)*.35:0);
+const legSwing=p.onGround?stride*.48:(p.vy<0?-.28:.18);
+g.save();g.translate(p.x,p.y+bob);if(p.face<0)g.translate(p.w,0),g.scale(-1,1);if(p.inv>0&&Math.floor(S.t/4)%2)g.globalAlpha=.45;
+// Cabeza, pelo y cara
+ const skinPalette={default:{skin:'#352019',hair:'#09090d',cloth:'#292326',trim:'#57413a'},shadow:{skin:'#241714',hair:'#08080b',cloth:'#151522',trim:'#34344b'},scavenger:{skin:'#50301f',hair:'#17100d',cloth:'#51402b',trim:'#8a714b'},royal:{skin:'#75452c',hair:'#1a1010',cloth:'#34234d',trim:'#c5a45a'}}[META.skin||'default']||{skin:'#352019',hair:'#09090d',cloth:'#292326',trim:'#57413a'};
+ g.fillStyle=skinPalette.skin;g.fillRect(3,0,16,15);g.fillStyle=skinPalette.hair;g.fillRect(3,0,16,5);g.fillStyle='#d6c6a0';g.fillRect(13,6,3,3);
+ // Barba larga y desprolija del personaje J2.
+ g.fillStyle=skinPalette.hair;g.fillRect(4,12,14,7);g.fillRect(5,17,12,8);g.fillRect(7,23,8,5);g.fillRect(6,26,3,3);g.fillRect(13,25,3,4);
+
+// Piernas y botas
+ const armorColor=t=>ARMOR_MATS[Math.max(0,Math.min(6,t-1))][1];
+ function drawLeg(x,angle){g.save();g.translate(x,29);g.rotate(angle);g.fillStyle=META.armor.legs?armorColor(META.armor.legs):'#292326';g.fillRect(-3,0,7,8);g.fillStyle=META.armor.boots?armorColor(META.armor.boots):'#171923';g.fillRect(-4,7,9,3);g.restore()}
+ drawLeg(7,legSwing);drawLeg(15,-legSwing);
+// Torso: la armadura comprada se dibuja encima de la ropa
+ g.fillStyle=skinPalette.cloth;g.fillRect(2,18,18,12);g.fillStyle='#151217';g.fillRect(2,27,5,3);g.fillRect(16,18,4,4);
+ if(META.armor.chest||META.shop.armor){g.fillStyle=META.armor.chest?armorColor(META.armor.chest):'#8b969f';g.fillRect(2,18,18,12);g.fillStyle='#dce5eb';g.fillRect(4,19,14,3);g.fillStyle='#596775';g.fillRect(9,22,4,7);g.fillStyle='#e0b84f';g.fillRect(9,24,3,3);g.fillStyle='#687580';g.fillRect(0,20,3,8);g.fillRect(19,20,3,8)}
+ if(META.armor.helmet){g.fillStyle=armorColor(META.armor.helmet);g.fillRect(2,-2,18,8);g.fillRect(0,3,22,3);g.fillStyle='#18202b';g.fillRect(13,4,4,2)}
+ else{g.fillStyle=skinPalette.trim;g.fillRect(3,21,16,3)}
+ // Barba larga por delante de la ropa.
+ g.fillStyle=skinPalette.hair;g.fillRect(6,12,11,7);g.fillRect(7,18,9,7);g.fillRect(8,24,7,5);g.fillRect(7,27,2,3);g.fillRect(13,27,2,3);
+ // Brazo articulado y mano pixelada: hombro sujeto al torso, antebrazo y puño legibles.
+ const punching=p.attackAnim>0,attackProgress=punching?1-p.attackAnim/24:0;
+ const eased=attackProgress*attackProgress*(3-2*attackProgress);
+ const strike=punching?(attackProgress<.22?-.42+eased*.32:attackProgress<.58?-.10+eased*.88:.78-(eased-.68)*1.15):(!p.onGround?-.38:walking?-.26-stride*.18:-.24+Math.sin(S.t*.06)*.025);
+ const thrust=punching?(attackProgress<.22?0:attackProgress<.58?(eased-.08)*.72:Math.max(0,.72-(eased-.58)*1.7)):0;
+ g.save();g.translate(14,21);g.rotate(strike);
+ // Shoulder/sleeve, attached cleanly to the shoulder seam.
+ g.fillStyle=skinPalette.cloth;g.fillRect(-1,-4,7,8);g.fillStyle=skinPalette.trim;g.fillRect(2,-4,4,2);
+ // Forearm taper with simple highlights, in front of the sleeve.
+ g.fillStyle='#9b674a';g.fillRect(4,-3,7+thrust*4,6);g.fillStyle='#c89670';g.fillRect(5,-2,6+thrust*4,3);g.fillStyle='#e0b38c';g.fillRect(9+thrust*4,-2,3,3);
+ // Fist/palm has a stable silhouette instead of the wobbling round hand.
+ const fx=11+thrust*4;g.fillStyle='#d8aa82';g.fillRect(fx,-4,6,8);g.fillStyle='#edc59e';g.fillRect(fx+1,-3,5,3);g.fillStyle='#bb805e';g.fillRect(fx+2,2,4,2);
+ // Knuckles and thumb move with the punch but remain connected to the palm.
+ g.fillStyle='#f0caa5';g.fillRect(fx+3,-5,2,2);g.fillRect(fx+5,-4,2,2);g.fillStyle='#c98c68';g.fillRect(fx-1,0,3,2);
+ if(META.loadout.melee==='doubleblades'){g.save();g.translate(14+thrust*5,0);g.rotate(punching?-.72:-.4);g.fillStyle='#c7d2df';g.beginPath();g.moveTo(0,0);g.lineTo(5,-29);g.lineTo(2,-34);g.lineTo(-3,-2);g.closePath();g.fill();g.fillStyle='#d3a84d';g.fillRect(-4,-2,10,3);g.save();g.translate(8,8);g.rotate(.35);g.fillStyle='#c7d2df';g.beginPath();g.moveTo(0,0);g.lineTo(5,-26);g.lineTo(2,-31);g.lineTo(-3,-2);g.closePath();g.fill();g.restore();g.restore()}else if(META.loadout.melee==='bat'){g.save();g.translate(14+thrust*5,0);g.rotate(punching?-.7:-.3);g.fillStyle='#a66a35';g.fillRect(-1,-24,5,29);g.fillStyle='#d8a16b';g.fillRect(-3,-28,9,7);g.restore()}else if(META.loadout.melee==='hammer'){g.save();g.translate(14+thrust*5,0);g.rotate(punching?-.7:-.3);g.fillStyle='#765234';g.fillRect(0,-24,4,29);g.fillStyle='#8999a8';g.fillRect(-6,-30,17,9);g.fillStyle='#d5e0e8';g.fillRect(-4,-29,4,7);g.restore()}else if(META.loadout.melee==='sword'){
+  // La espada rota suavemente desde la mano, siguiendo la estocada.
+  g.save();g.translate(14+thrust*5,0);g.rotate(punching?-.75+thrust*1.05:-.55);
+  g.fillStyle='#654326';g.fillRect(-2,-1,4,10);g.fillStyle='#d5a64c';g.fillRect(-7,7,14,3);
+  g.fillStyle='#dce8f2';g.beginPath();g.moveTo(-2,9);g.lineTo(2,9);g.lineTo(2,-22);g.lineTo(0,-32);g.lineTo(-2,-22);g.closePath();g.fill();g.fillStyle='#fff';g.fillRect(0,-25,1.5,19);g.restore();
+ }
+ if(punching&&attackProgress>.38&&attackProgress<.64){g.strokeStyle='#ffe18a';g.lineWidth=1.6;g.beginPath();g.moveTo(fx+8,-5);g.lineTo(fx+13,-8);g.moveTo(fx+9,1);g.lineTo(fx+15,1);g.moveTo(fx+7,6);g.lineTo(fx+12,9);g.stroke()}
+ g.restore();
+ if(META.loadout.ranged){const rw=META.loadout.ranged,rec=p.shootAnim>0?2:0;g.save();g.translate(18-rec,22);g.rotate(p.shootAnim>0?-.2:-.08);g.fillStyle='#493a2b';g.fillRect(0,-1,15,5);g.fillStyle=rw==='sniper'?'#8d9ca8':rw==='shotgun'?'#7a4a1a':'#596575';g.fillRect(6,-4,rw==='sniper'?20:rw==='shotgun'?18:13,rw==='shotgun'?5:4);if(rw==='shotgun'){g.fillStyle='#2b2f36';g.fillRect(10,-5,14,2)}if(rw==='bow'||rw==='crossbow'){g.strokeStyle='#d8b48a';g.lineWidth=1.5;g.beginPath();g.arc(16,1,8,-1.1,1.1);g.stroke()}g.restore()}
+ // Escudo equipado en el brazo opuesto
+ if(META.shop.shield){g.fillStyle='#527b9c';g.beginPath();g.moveTo(0,18);g.lineTo(7,20);g.lineTo(7,29);g.lineTo(3,34);g.lineTo(-1,29);g.closePath();g.fill();g.strokeStyle='#c8e4f5';g.lineWidth=1.5;g.stroke();g.fillStyle='#e4c66c';g.fillRect(2,21,2,8)}
+ if(spectator){g.strokeStyle='#9f7fff';g.lineWidth=2;g.strokeRect(-2,-2,26,42);g.lineWidth=1}
+g.restore();
 }
+function drawRoguelikePlane(){const r=S.dungeonRoom,p=S.player;
+ const grad=g.createLinearGradient(0,0,0,H);grad.addColorStop(0,r.palette[0]);grad.addColorStop(.7,r.palette[1]);grad.addColorStop(1,'#09080d');g.fillStyle=grad;g.fillRect(0,0,W,H);
+ g.save();g.translate(-S.cam,0);for(const d of r.decor){g.globalAlpha=d.a;g.fillStyle=r.palette[2];g.beginPath();g.arc(d.x,d.y,d.r,0,Math.PI*2);g.fill()}g.globalAlpha=1;
+ // Back wall and far portal create a true self-contained screen/plane.
+ g.fillStyle=r.palette[1];g.fillRect(0,r.floor-210,r.width,210);g.strokeStyle=r.palette[2];g.lineWidth=4;g.strokeRect(12,r.floor-204,r.width-24,198);
+ for(const pl of r.platforms){g.fillStyle=pl.solid?'#342a40':'#4d4560';g.fillRect(pl.x,pl.y,pl.w,pl.h);g.fillStyle=r.palette[2];g.fillRect(pl.x,pl.y,pl.w,4);if(pl.moving){g.fillStyle='#ffffff55';g.fillRect(pl.x+8,pl.y+5,pl.w-16,2)}}
+ if(r.kind===0){for(const [i,st] of r.stations.entries()){const lit=r.solved||r.progress>0&&r.order.slice(0,r.progress).includes(i);g.shadowColor=r.palette[2];g.shadowBlur=lit?20:8;g.fillStyle=lit?'#83ffbb':'#453454';g.beginPath();g.arc(st.x,st.y-19,18,0,Math.PI*2);g.fill();g.shadowBlur=0;g.fillStyle='#fff';g.font='bold 15px sans-serif';g.textAlign='center';g.fillText(st.symbol,st.x,st.y-14);g.font='9px sans-serif';g.fillText('TOCAR',st.x,st.y+15)}}
+ if(r.kind===1){for(const c of r.collectibles)if(!c.got){g.shadowColor='#62e8ff';g.shadowBlur=18;g.fillStyle='#54dcf6';g.beginPath();g.moveTo(c.x,c.y-15);g.lineTo(c.x+11,c.y);g.lineTo(c.x,c.y+15);g.lineTo(c.x-11,c.y);g.closePath();g.fill();g.shadowBlur=0;g.fillStyle='#fff';g.font='10px sans-serif';g.textAlign='center';g.fillText('CRISTAL',c.x,c.y+29)}}
+ if(r.kind===2){for(const d of r.doors){g.fillStyle=d.safe?'#3a765a':'#573e43';g.fillRect(d.x-30,r.floor-85,60,85);g.strokeStyle=d.safe?'#83ffbb':'#c78383';g.lineWidth=3;g.strokeRect(d.x-30,r.floor-85,60,85);g.fillStyle='#fff';g.font='bold 21px sans-serif';g.textAlign='center';g.fillText(d.symbol,d.x,r.floor-45);g.font='9px sans-serif';g.fillText('PUERTA',d.x,r.floor-12)}}
+ if(r.kind===3){for(const [i,st] of r.stations.entries()){const lit=r.activated&&r.activated[i];g.shadowColor='#78dfff';g.shadowBlur=lit?18:8;g.fillStyle=lit?'#65eec0':'#24516d';g.beginPath();g.arc(st.x,st.y-18,16,0,Math.PI*2);g.fill();g.shadowBlur=0;g.fillStyle='#fff';g.font='bold 13px sans-serif';g.textAlign='center';g.fillText(st.label,st.x,st.y-13);g.font='9px sans-serif';g.fillText('ACTIVAR',st.x,st.y+17)}}
+ // Entry and exit gates are always visible on the isolated plane.
+ g.fillStyle='#17111f';g.fillRect(18,r.floor-72,52,72);g.strokeStyle='#b58cff';g.lineWidth=3;g.strokeRect(18,r.floor-72,52,72);g.fillStyle='#fff';g.font='9px sans-serif';g.textAlign='center';g.fillText('VOLVER',44,r.floor-81);
+ if(r.solved){g.fillStyle='#19352a';g.fillRect(r.width-104,r.floor-82,72,82);g.strokeStyle='#ffd75e';g.strokeRect(r.width-104,r.floor-82,72,82);g.fillStyle='#ffd75e';g.font='9px sans-serif';g.fillText('SALIDA',r.width-68,r.floor-90);g.fillText('C / USAR',r.width-68,r.floor-34)}
+ // Small clear avatar in the independent room.
+ drawPlaneAvatar();g.restore();
+ // Interface belongs to the new plane, not the old level HUD.
+ g.fillStyle='#08060dcc';g.fillRect(10,10,W-20,82);g.strokeStyle=r.palette[2];g.lineWidth=2;g.strokeRect(10,10,W-20,82);g.fillStyle='#fff';g.font='bold 15px sans-serif';g.textAlign='left';g.fillText(['OTRA DIMENSIÓN · SALA DE SECUENCIA','OTRA DIMENSIÓN · CÁMARA DE CRISTALES','OTRA DIMENSIÓN · PUERTAS DEL ENIGMA','OTRA DIMENSIÓN · TORRE DE BALIZAS'][r.kind],22,33);g.font='12px sans-serif';g.fillStyle='#ded4e8';g.fillText(r.hint,22,54);g.fillStyle=r.palette[2];g.fillText(r.solved?'Resuelto · buscá la salida dorada a la derecha':'Progreso: '+r.progress+'/3 · C / USAR para interactuar · puerta violeta para volver',22,75);g.textAlign='left';
+ if(r.transition>0){g.globalAlpha=Math.min(1,r.transition/12);g.fillStyle='#05030b';g.fillRect(0,0,W,H);g.globalAlpha=1;g.fillStyle='#fff';g.font='bold 18px sans-serif';g.textAlign='center';g.fillText('CAMBIANDO DE PLANO…',W/2,H/2);g.textAlign='left'}
+ if(toastT>0){g.fillStyle='#08060de8';g.fillRect(W*.12,H-78,W*.76,48);g.strokeStyle=r.palette[2];g.strokeRect(W*.12,H-78,W*.76,48);g.fillStyle='#fff';g.font='12px sans-serif';g.textAlign='center';g.fillText(toastMsg,W/2,H-50);g.textAlign='left'}
+}
+
 function spikeHeight(hz){const t=((hz.phase||0)%204+204)%204; if(t<16)return Math.round(22*(t/16));if(t<112)return 22;if(t<128)return Math.round(22*(1-(t-112)/16));return 0}
 function moveEnemySafeX(ent,dx){
  if(ent.pitCrossDir){
@@ -790,7 +891,7 @@ else if(wasBelow&&vy<=0){ent.y=s.y+s.h;ent.vy=0}
 else if(wasLeft&&vx>0){ent.x=s.x-ent.w;ent.vx=0}
 else if(wasRight&&vx<0){ent.x=s.x+s.w;ent.vx=0}}}
 function newGame(){RUN.levelSpeed=0;RUN.doubleJump=!!(META.doubleJump||META.sk.dj>0);const gy=GY(),wd=WORLDS[world-1],gl=(world-1)*5+level,n=Math.min(18,6+gl);
-S={t:0,cam:0,keys:0,skillCd:0,atkT:0,weaponCd:0,dead:0,parts:[],shots:[],turrets:[],hazards:[],platforms:[],props:[],items:[],enemies:[],boss:null,exit:null,autoFire:spectator,player:{x:70,y:gy-38,w:22,h:38,vx:0,vy:0,face:1,onGround:1,jumps:0,anim:0,attackAnim:0,inv:0,hp:META.hp,maxhp:META.maxhp},p2:gameMode==='solo'?null:{x:115,y:gy-38,w:22,h:38,vx:0,vy:0,face:1,onGround:1,jumps:0,anim:0,attackAnim:0,inv:0,hp:100,maxhp:100,atkCd:0}};
+S={t:0,cam:0,roomMode:false,keys:0,skillCd:0,atkT:0,weaponCd:0,dead:0,parts:[],shots:[],turrets:[],hazards:[],platforms:[],props:[],items:[],enemies:[],boss:null,exit:null,autoFire:spectator,player:{x:70,y:gy-38,w:22,h:38,vx:0,vy:0,face:1,onGround:1,jumps:0,anim:0,attackAnim:0,inv:0,hp:META.hp,maxhp:META.maxhp},p2:gameMode==='solo'?null:{x:115,y:gy-38,w:22,h:38,vx:0,vy:0,face:1,onGround:1,jumps:0,anim:0,attackAnim:0,inv:0,hp:100,maxhp:100,atkCd:0}};
 clampHP();
 S.platforms.push({x:-300,y:gy,w:3300,h:100,solid:true,ground:true});
 for(let i=0;i<11;i++)S.platforms.push({x:230+i*195,y:gy-(i%2?106:62),w:130,h:14,solid:false});
@@ -918,7 +1019,7 @@ function castPowerSkill(p){
  SFX.jump();p.inv=Math.max(p.inv,30);p.dashInv=30;toast('¡DASH DE SOMBRA!');p.x+=p.face*125;burst(p.x+11,p.y+19,'#7ee7ff',24);
  for(const e of targets)if(e.alive&&Math.abs(e.x-p.x)<155&&Math.abs(e.y-p.y)<90)hurtEnemy(e,e.kind==='boss'?38:48)
 }
-function update(){S.t++;if(S.stormFx){S.stormFx.t++;if(S.stormFx.t>=S.stormFx.life)S.stormFx=null}if(!spectator)RUN.time++;if(!spectator&&S.t%600===0)saveGame(true);const p=S.player,gy=GY();
+function update(){if(S&&S.roomMode){updateRoguelikePlane();return}S.t++;if(S.stormFx){S.stormFx.t++;if(S.stormFx.t>=S.stormFx.life)S.stormFx=null}if(!spectator)RUN.time++;if(!spectator&&S.t%600===0)saveGame(true);const p=S.player,gy=GY();
 if(p.inv>0)p.inv--;if(p.dashInv>0)p.dashInv--;if(S.skillCd>0)S.skillCd--;if(toastT>0)toastT--;
 p.vx=(input.right-input.left)*playerSpeed();if(input.right)p.face=1;else if(input.left)p.face=-1;
 const maxJ=maxJumps();if(!p.onGround&&p.jumps===0)p.jumps=1;
@@ -1008,11 +1109,7 @@ if(it.kind=='coin'&&hit(p,it)){it.got=1;META.coins+=10;RUN.coinsEarned+=10;saveM
 if(it.kind=='heart'&&hit(p,it)){it.got=1;RUN.hearts++;const h=healPlayer(it.value);addXp(4);SFX.heart();burst(it.x+7,it.y+6,'#ff6b81',10);toast(h>0?'+'+h+' de vida':'Vida llena')}
 if(it.kind=='key'&&hit(p,it)){it.got=1;S.keys++;RUN.keys++;addXp(25);SFX.chest();burst(it.x+14,it.y+15,'#ffd75e',20);toast('¡Llave dorada!')}
 if(it.kind=='chest'&&pressed.use&&hit(p,{x:it.x-14,y:it.y-14,w:it.w+28,h:it.h+28}))openChest(it)}
-if(pressed.use&&S.dungeonRoom){const r=S.dungeonRoom,p=S.player;
- if(!r.active&&Math.abs(p.x+p.w/2-r.entryX)<58&&Math.abs(p.y+p.h-GY())<72){r.active=true;buildDungeonPlatforms(r);for(const it of S.items||[])if(it.dungeonReward)it.hidden=false;p.x=r.roomX+16;p.y=r.roomY-p.h;p.vy=0;p.vx=0;toast('CÁMARA '+(r.kind+1)+'/4 · '+r.hint);burst(p.x+11,p.y,'#b58cff',18)}
- else if(r.active&&Math.abs(p.x+p.w/2-(r.roomX+22))<28&&Math.abs(p.y+p.h-r.roomY)<38)leaveDungeonRoom(r);
- else if(r.active&&!r.solved){let used=false;for(let i=0;i<r.stations.length;i++)if(activateDungeonStation(r,p,i)){used=true;break}if(!used&&r.kind===2)toast(r.hint);else if(!used)toast(r.hint)}
-}
+if(pressed.use&&S.dungeonRoom&&!S.dungeonRoom.active&&Math.abs(S.player.x+S.player.w/2-S.dungeonRoom.entryX)<58&&Math.abs(S.player.y+S.player.h-GY())<72){enterRoguelikePlane();pressed.use=0;return;}
 if(pressed.use&&S.secretRoom){const sr=S.secretRoom;if(!sr.active&&Math.abs(S.player.x+S.player.w/2-sr.entryX)<55&&Math.abs(S.player.y+S.player.h-GY())<70){sr.active=true;S.player.x=sr.entryX+35;S.player.y=sr.roomY-38;S.player.vy=0;toast('¡HABITACIÓN SECRETA!');burst(S.player.x,S.player.y,'#b58cff',22)}else if(sr.active&&Math.abs(S.player.x+S.player.w/2-sr.exitX)<55&&Math.abs(S.player.y+S.player.h-(sr.roomY+50))<70){sr.active=false;S.player.x=sr.entryX;S.player.y=GY()-38;S.player.vy=0;toast('Volviste al nivel')}}
 
 const clear=enemiesLeft()==0;
@@ -1653,10 +1750,10 @@ function drawStormEffect(){
  if(fx.t<4){g.globalAlpha=(1-fx.t/4)*.12;g.fillStyle='#c5efff';g.fillRect(0,0,W,H)}
  g.restore();
 }
-function draw(){const gy=GY(),wd=WORLDS[world-1];
+function draw(){if(S&&S.roomMode){drawRoguelikePlane();return}const gy=GY(),wd=WORLDS[world-1];
 drawBG(wd,gy);
 g.save();g.translate(-S.cam,0);
-if(S.dungeonRoom&&S.dungeonRoom.active){const r=S.dungeonRoom;const wall=['rgba(27,18,43,.97)','rgba(12,42,49,.97)','rgba(45,29,25,.97)','rgba(16,30,44,.97)'][r.kind];g.fillStyle=wall;g.fillRect(r.roomX-8,r.roomY-218,r.w+16,218);g.strokeStyle=['#b58cff','#62e8ff','#ffb95c','#78dfff'][r.kind];g.lineWidth=3;g.strokeRect(r.roomX-8,r.roomY-218,r.w+16,218);g.fillStyle='#fff';g.font='bold 13px sans-serif';g.textAlign='center';g.fillText(['SALA DE SECUENCIA','CÁMARA DE CRISTALES','LAS TRES PUERTAS','TORRE DE BALIZAS'][r.kind],r.roomX+r.w/2,r.roomY-194);g.font='10px sans-serif';g.fillStyle='#dfd1ff';g.fillText(r.hint,r.roomX+r.w/2,r.roomY-176);g.textAlign='left'}
+
 for(const s of S.platforms){g.fillStyle=wd.ground;g.fillRect(s.x,s.y,s.w,s.h);g.fillStyle=wd.top;g.fillRect(s.x,s.y,s.w,5);
 if(debugBoxes){g.strokeStyle=s.solid?'#39c0ff':'#7dff9e';g.strokeRect(s.x+.5,s.y+.5,s.w-1,s.h-1)}}
 for(const hz of S.hazards||[]){
@@ -1668,10 +1765,7 @@ for(const hz of S.hazards||[]){
   if(hz.pit){g.fillStyle='#5e4d45';g.fillRect(hz.x-4,lip,4,Math.max(10,hz.h+18));g.fillRect(hz.x+hz.w,lip,4,Math.max(10,hz.h+18))}
  }else{const base=hz.baseY??(hz.y+hz.h);g.fillStyle='#46505d';g.fillRect(hz.x,base-3,hz.w,4);if(hz.h>0){g.fillStyle='#dce7ef';const count=Math.max(1,Math.floor(hz.w/15)),step=hz.w/count;for(let q=0;q<count;q++){g.beginPath();g.moveTo(hz.x+q*step,base);g.lineTo(hz.x+(q+.5)*step,hz.y);g.lineTo(hz.x+(q+1)*step,base);g.closePath();g.fill()}}}
 }
-if(S.dungeonRoom){const r=S.dungeonRoom,nearDoor=Math.abs(S.player.x+S.player.w/2-r.entryX)<360; if(nearDoor||r.active){
- const dx=r.active?r.roomX+22:r.entryX,dy=r.active?r.roomY:GY();g.save();g.translate(dx,dy);g.shadowColor='#9f7fff';g.shadowBlur=18;g.fillStyle='#271d39';g.fillRect(-20,-64,40,64);g.shadowBlur=0;g.strokeStyle='#b58cff';g.lineWidth=3;g.strokeRect(-16,-60,32,60);g.fillStyle='#d7b8ff';g.font='bold 10px sans-serif';g.textAlign='center';g.fillText(r.active?'SALIR':'PUERTA SECRETA',0,-72);g.font='9px sans-serif';g.fillText('C / USAR',0,-83);g.textAlign='left';g.restore();}
- if(r.active){for(let i=0;i<r.stations.length;i++){const st=r.stations[i],sx=st.x,sy=st.y,lit=r.solved||r.kind===1&&r.collected&&r.collected[i]||r.kind===3&&r.activated&&r.activated[i]||r.kind===0&&r.progress>i;g.save();g.shadowColor=lit?'#83ffca':['#a878ff','#62e8ff','#ffb95c','#78dfff'][r.kind];g.shadowBlur=lit?15:10;g.fillStyle=lit?'#54b98c':['#40345c','#205e70','#70502e','#24516d'][r.kind];if(r.kind===2){g.fillRect(sx-20,sy-75,40,75);g.strokeStyle=lit?'#83ffca':'#ffcf87';g.strokeRect(sx-20,sy-75,40,75)}else{g.beginPath();g.arc(sx,sy-18,r.kind===1?11:14,0,Math.PI*2);g.fill()}g.shadowBlur=0;g.fillStyle='#fff';g.font='bold 16px sans-serif';g.textAlign='center';g.fillText(r.kind===1?'✦':r.kind===2?'↟':st.label,sx,sy-12);g.font='9px sans-serif';g.fillText('C / USAR',sx,sy+1);g.textAlign='left';g.restore();}}
-}
+if(S.dungeonRoom&&!S.dungeonRoom.active){const r=S.dungeonRoom,nearDoor=Math.abs(S.player.x+S.player.w/2-r.entryX)<360;if(nearDoor){g.save();g.translate(r.entryX,GY());g.shadowColor='#b58cff';g.shadowBlur=22;g.fillStyle='#211532';g.fillRect(-22,-72,44,72);g.shadowBlur=0;g.strokeStyle='#cf9dff';g.lineWidth=4;g.strokeRect(-18,-68,36,68);g.fillStyle='#fff';g.font='bold 10px sans-serif';g.textAlign='center';g.fillText('PORTAL A OTRA SALA',0,-81);g.font='9px sans-serif';g.fillText('C / USAR',0,-93);g.textAlign='left';g.restore()}}
 if(S.secretRoom){const sr=S.secretRoom;
  const drawSecretDoor=(x,y,label)=>{g.save();g.translate(x,y);g.shadowColor='#f8c55c';g.shadowBlur=15;g.fillStyle='#4b3544';g.fillRect(-25,-70,50,70);g.shadowBlur=0;g.fillStyle='#a4845a';g.fillRect(-22,-68,44,68);g.fillStyle='#35212b';g.fillRect(-18,-64,36,64);g.fillStyle='#624035';g.fillRect(-15,-61,30,61);g.strokeStyle='#b99a65';g.lineWidth=2;g.strokeRect(-15,-61,30,61);g.beginPath();g.moveTo(0,-60);g.lineTo(0,0);g.moveTo(-14,-42);g.lineTo(14,-42);g.moveTo(-14,-20);g.lineTo(14,-20);g.stroke();g.fillStyle='#ffd76a';g.beginPath();g.arc(9,-28,3,0,Math.PI*2);g.fill();g.font='bold 11px sans-serif';g.textAlign='center';g.fillStyle='#fff1ba';g.fillText(label,0,-79);g.font='10px sans-serif';g.fillText('C / USAR',0,-91);g.restore()};
  drawSecretDoor(sr.entryX,GY(),'PUERTA SECRETA');if(sr.active)drawSecretDoor(sr.exitX,sr.roomY+50,'SALIR');
@@ -1781,7 +1875,7 @@ g.beginPath();g.moveTo(14,0);g.lineTo(-10,-12);g.lineTo(-4,0);g.lineTo(-10,12);g
 if(dmgFlash>0){dmgFlash--;g.fillStyle='rgba(255,60,60,'+(dmgFlash/50)+')';g.fillRect(0,0,W,H)}
 drawHUD();
 
-if(S.dungeonRoom&&S.dungeonRoom.active){const r=S.dungeonRoom;g.fillStyle='#d7c7ff';g.font='bold 12px sans-serif';g.fillText(['INTERRUPTORES ① → ② → ③','CRISTALES ✦ · cualquier orden','ELEGÍ LA PUERTA SEGURA','SUBÍ Y ACTIVÁ A, B Y C'][r.kind],14,100);g.font='10px sans-serif';g.fillText(r.solved?'¡RESUELTO! Cofre dorado · C para salir':r.kind===2?'Pista: '+r.hint:r.progress+'/3 · '+r.hint,14,116)}
+
 const b2=S.boss;
 if(b2&&b2.alive){g.fillStyle='#000000a0';g.fillRect(W/2-130,62,260,16);g.fillStyle=b2.type=='shadow'?'#9f7fff':'#e2483d';g.fillRect(W/2-128,64,256*Math.max(0,b2.hp/b2.maxhp),12);g.fillStyle='#fff';g.font='7px '+FONT_PX;g.textAlign='center';g.fillText(b2.name+' F'+b2.phase,W/2,58);g.textAlign='left'}}
 let loopLast=0,loopAcc=0;
@@ -1796,7 +1890,7 @@ function setControlsVisibility(active){
 const mobileLike=window.matchMedia('(pointer:coarse), (max-width:800px)').matches;
 document.getElementById('controls').style.display=(active&&mobileLike)?'flex':'none';
 }
-function startLevel(){setControlsVisibility(true);paused=false;document.getElementById('end').classList.add('hide');document.getElementById('pause').classList.add('hide');document.getElementById('stats').classList.add('hide');document.getElementById('settings').classList.add('hide');newGame();toast(WORLDS[world-1].name+' N'+level+' · Puerta violeta cerca del inicio: entrá y activá ① → ② → ③ con C / USAR.')}
+function startLevel(){setControlsVisibility(true);paused=false;document.getElementById('end').classList.add('hide');document.getElementById('pause').classList.add('hide');document.getElementById('stats').classList.add('hide');document.getElementById('settings').classList.add('hide');newGame();toast(WORLDS[world-1].name+' N'+level+' · Encontrá el portal violeta: te lleva a una sala aparte que cambia en cada partida.')}
 let creativeMap=[],creativeMapName='Mi mapa',customMapActive=false;
 function updateCreativeInfo(){const el=document.getElementById('creativeInfo');if(el)el.textContent='Herramienta: '+creativeTool+' · Elementos: '+creativeMap.length+' · Guardá antes de salir'}
 function buildCreativeToolbar(){
