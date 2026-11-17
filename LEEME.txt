@@ -1,0 +1,10 @@
+LA ÚLTIMA LLAVE — ACTUALIZACIÓN
+
+Incluye menú y efectos anteriores, foto integrada, personaje y demonio actualizados, guardar/cargar partida como archivo JSON y nuevo diseño visual del segundo jefe (Lobo espectral).
+
+CÓMO USAR EL GUARDADO POR ARCHIVOS
+• En el menú inicial: “Guardar en archivo” descarga la partida. “Cargar archivo” permite elegir ese .json en este u otro dispositivo.
+• Durante el juego: pausa con P/Esc y usá las opciones “GUARDAR EN ARCHIVO” y “CARGAR ARCHIVO”.
+• El archivo conserva el estado de la partida, el perfil/progresión y preferencias/mapas guardados. No reemplaza ni borra el archivo existente al descargar.
+
+Se probaron exportación/importación de partidas, archivo inválido, jefe segundo en ambas direcciones, menús y modos, niveles, pozos, pinchos, puerta secreta y modo creativo. El rediseño del jefe es visual: sus estadísticas y ataques se mantienen.

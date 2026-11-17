@@ -1,0 +1,41 @@
+[build]
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# MCP endpoint and OAuth 2.1 discovery/authentication routes.
+[[redirects]]
+  from = "/mcp"
+  to = "/.netlify/functions/mcp"
+  status = 200
+
+[[redirects]]
+  from = "/.well-known/oauth-protected-resource"
+  to = "/.netlify/functions/oauth-resource"
+  status = 200
+
+[[redirects]]
+  from = "/.well-known/oauth-protected-resource/mcp"
+  to = "/.netlify/functions/oauth-resource"
+  status = 200
+
+[[redirects]]
+  from = "/.well-known/oauth-authorization-server"
+  to = "/.netlify/functions/oauth-server"
+  status = 200
+
+[[redirects]]
+  from = "/register"
+  to = "/.netlify/functions/oauth-register"
+  status = 200
+
+[[redirects]]
+  from = "/authorize"
+  to = "/.netlify/functions/oauth-authorize"
+  status = 200
+
+[[redirects]]
+  from = "/token"
+  to = "/.netlify/functions/oauth-token"
+  status = 200
