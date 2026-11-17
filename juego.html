@@ -1087,7 +1087,7 @@ g.fillStyle='#fff6c8';g.fillRect(-4,-5,2,2);g.fillRect(3,3,2,2);g.restore()}
 function drawChest(x,y,t,tier){
  const sc=CHEST_SCALE[tier]||.7;g.save();g.translate(x,y);g.scale(sc,sc);
  const glow={wood:'#c18a45',iron:'#cbd5df',gold:'#ffd75e',crystal:'#62e8ff',legendary:'#c18cff'}[tier]||'#ffd75e';
- g.globalAlpha=(tier==='wood'?.1:.28)+.14*Math.sin(t*.1);g.fillStyle=glow;g.beginPath();g.arc(22,18,tier==='legendary'?46:tier==='crystal'?38:tier==='gold'?33:28,0,7);g.fill();g.globalAlpha=1;
+ g.globalAlpha=(tier==='wood'?.1:.28)+.14*Math.sin(t*.1);g.fillStyle=glow;g.beginPath();g.arc(22,18,tier==='legendary'?46:tier==='crystal'?43:tier==='gold'?33:28,0,7);g.fill();g.globalAlpha=1;
  const sp=(c)=>{g.fillStyle=c||'#fff';const sx=4+((Math.sin(t*.13)+1)/2)*36;g.fillRect(sx,((t>>3)%2)?2:8,3,3)};
  if(tier==='wood'){
   g.fillStyle='#6b3f17';g.fillRect(0,14,44,20);
@@ -1111,16 +1111,35 @@ function drawChest(x,y,t,tier){
   g.fillStyle='#d8344a';g.beginPath();g.moveTo(22,15);g.lineTo(27,20);g.lineTo(22,27);g.lineTo(17,20);g.closePath();g.fill();
   g.fillStyle='#ffb0bb';g.fillRect(20,18,2,3);sp('#fff');
  }else if(tier==='crystal'){
-  g.fillStyle='#1d6f8c';g.beginPath();g.moveTo(4,34);g.lineTo(0,16);g.lineTo(12,12);g.lineTo(32,12);g.lineTo(44,16);g.lineTo(40,34);g.closePath();g.fill();
-  g.fillStyle='#3fc6e6';g.beginPath();g.moveTo(8,32);g.lineTo(5,18);g.lineTo(16,15);g.lineTo(28,15);g.lineTo(39,18);g.lineTo(36,32);g.closePath();g.fill();
-  g.fillStyle='#9bf3ff';g.beginPath();g.moveTo(8,18);g.lineTo(16,15);g.lineTo(22,24);g.closePath();g.fill();
-  g.fillStyle='#c9fbff';g.beginPath();g.moveTo(26,15);g.lineTo(36,17);g.lineTo(30,25);g.closePath();g.fill();
-  g.fillStyle='#62e8ff';
-  g.beginPath();g.moveTo(6,14);g.lineTo(10,-4);g.lineTo(15,12);g.closePath();g.fill();
-  g.beginPath();g.moveTo(17,13);g.lineTo(23,-10);g.lineTo(29,13);g.closePath();g.fill();
-  g.beginPath();g.moveTo(30,12);g.lineTo(36,-2);g.lineTo(40,15);g.closePath();g.fill();
-  g.fillStyle='#e8ffff';g.beginPath();g.moveTo(20,12);g.lineTo(23,-6);g.lineTo(25,12);g.closePath();g.fill();
-  g.fillStyle='#fff';g.beginPath();g.moveTo(22,19);g.lineTo(26,24);g.lineTo(22,30);g.lineTo(18,24);g.closePath();g.fill();sp('#fff');
+  // Cofre de cristal: silueta de gema tallada con bisagras y cerradura prismáticas.
+  const facet=(pts,fill,stroke)=>{g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)g.lineTo(pts[i][0],pts[i][1]);g.closePath();g.fillStyle=fill;g.fill();if(stroke){g.strokeStyle=stroke;g.lineWidth=1;g.stroke()}};
+  // Sombra y zócalo de cristal oscuro.
+  g.fillStyle='#062638';g.fillRect(5,31,34,4);g.fillStyle='#76f5ff';g.fillRect(9,33,7,2);g.fillRect(28,33,7,2);
+  // Caja baja: contorno índigo, grandes planos cian y zafiro.
+  facet([[3,16],[9,12],[35,12],[41,16],[38,32],[6,32]],'#082f50','#a1faff');
+  facet([[5,17],[13,15],[17,29],[7,30]],'#28c6e3','#77f4ff');
+  facet([[13,15],[22,17],[22,30],[17,29]],'#1284b4','#58eaff');
+  facet([[22,17],[31,14],[27,30],[22,30]],'#155b91','#93f7ff');
+  facet([[31,14],[39,17],[36,30],[27,30]],'#3b71bb','#b7faff');
+  // Faja luminosa con pequeños engarces laterales.
+  g.fillStyle='#b8fbff';g.fillRect(3,19,4,2);g.fillRect(37,19,4,2);g.fillStyle='#7befff';g.fillRect(7,30,30,2);
+  g.fillStyle='#eaffff';g.fillRect(9,30,3,2);g.fillRect(32,30,3,2);
+  // Tapa elevada, tallada en facetas triangulares; ribete brillante.
+  facet([[3,16],[7,8],[15,5],[22,9],[29,4],[38,8],[41,16]],'#124d74','#c2ffff');
+  facet([[6,14],[9,9],[15,7],[19,14]],'#55e6f1','#d9ffff');
+  facet([[19,14],[15,7],[22,9],[23,15]],'#208ec2','#8cf6ff');
+  facet([[23,15],[22,9],[29,6],[31,13]],'#2167a5','#9af7ff');
+  facet([[31,13],[29,6],[37,9],[39,15]],'#846ee0','#e9dcff');
+  g.strokeStyle='#f1ffff';g.lineWidth=1.5;g.beginPath();g.moveTo(4,16);g.lineTo(8,8);g.lineTo(15,5);g.lineTo(22,9);g.lineTo(29,4);g.lineTo(38,8);g.lineTo(41,16);g.stroke();
+  // Cerradura: gema hexagonal con destello central.
+  facet([[22,16],[28,21],[26,29],[18,29],[16,21]],'#052b50','#d6ffff');
+  facet([[22,18],[26,21],[24,27],[20,28],[18,22]],'#51f1ff','#eaffff');
+  facet([[22,18],[22,24],[18,22]],'#ffffff');facet([[22,18],[26,21],[22,24]],'#d9ffff');
+  g.fillStyle='#082f50';g.fillRect(21,24,2,3);g.fillRect(20,27,4,1);
+  // Aletas de cristal laterales y brillos móviles.
+  facet([[2,19],[-2,15],[1,25],[5,23]],'#52e9f5','#ceffff');
+  facet([[42,19],[46,14],[43,25],[39,23]],'#8d82ef','#e8e2ff');
+  const pulse=.45+.4*(.5+.5*Math.sin(t*.12));g.globalAlpha=pulse;g.strokeStyle='#dfffff';g.lineWidth=1;g.beginPath();g.moveTo(10,11);g.lineTo(14,8);g.moveTo(33,10);g.lineTo(36,12);g.stroke();g.globalAlpha=1;sp('#fff');
  }else{
   g.fillStyle='#24123f';g.fillRect(0,14,44,20);g.fillStyle='#3a1f66';g.fillRect(0,14,44,5);
   g.fillStyle='#4a2a7a';g.beginPath();g.moveTo(0,14);g.quadraticCurveTo(22,-8,44,14);g.closePath();g.fill();
