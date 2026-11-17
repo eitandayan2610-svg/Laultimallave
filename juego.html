@@ -729,6 +729,18 @@ function configureLavaPits(state,gy){
  }
  if(cursor<right)state.platforms.push({x:cursor,y:gy,w:right-cursor,h:100,solid:true,ground:true});
 }
+function makeRoguelikeRoom(gy){
+ const choices=[560,950,1500,2120],x=choices[Math.floor(Math.random()*choices.length)], floor=gy-205, w=360;
+ const ids=['moon','sun','skull'],symbols={moon:'☾',sun:'☀',skull:'☠'},code=ids.slice();
+ for(let i=code.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[code[i],code[j]]=[code[j],code[i]]}
+ // A compact side dungeon: split floor, a lava chasm, moving bridge, and spike shelf.
+ S.platforms.push({x:x,y:floor,w:112,h:16,solid:true},{x:x+198,y:floor,w:162,h:16,solid:true});
+ S.platforms.push({x:x+94,y:floor-74,w:100,h:12,solid:false,moving:1,baseX:x+94,range:42,phase:Math.random()*6});
+ S.platforms.push({x:x+202,y:floor-128,w:112,h:12,solid:false});
+ S.hazards.push({x:x+112,y:floor+14,w:86,h:22,type:'lava',baseY:floor,phase:Math.random()*6});
+ S.hazards.push({x:x+230,y:floor-146,w:48,h:18,type:'spikesFixed',baseY:floor-128,phase:0});
+ return{entryX:x+22,roomX:x,roomY:floor,w,active:false,code,progress:0,solved:false,chestAdded:false,symbols,stations:[x+70,x+150,x+255]}
+}
 function spikeHeight(hz){return Math.max(0,Math.round(22*(.5+.5*Math.sin(hz.phase||0))))}
 function moveEnemySafeX(ent,dx){
  if(ent.pitCrossDir){
@@ -784,6 +796,7 @@ S.exit={x:2830,y:gy-86,w:52,h:86,open:0};
  for(let i=0;i<4;i++){const hx=430+i*650;if(i%2===0)S.hazards.push({x:hx,y:gy+18,w:82,h:22,type:'lava',baseY:gy,phase:i*1.3});else if(i===1)S.hazards.push({x:hx,y:gy,w:82,h:0,type:'spikes',baseY:gy,phase:i*1.3});else S.hazards.push({x:hx,y:gy-18,w:82,h:18,type:'spikesFixed',baseY:gy,phase:0});} configureLavaPits(S,gy);
  S.runes=[{id:'moon',x:640,y:gy-34,symbol:'☾'},{id:'sun',x:1320,y:gy-34,symbol:'☀'},{id:'skull',x:2050,y:gy-34,symbol:'☠'}];S.runeProgress=0;S.secretUnlocked=0;S.secretRoom=(level%2===0)?{entryX:1760,entryY:gy-28,exitX:1880,roomY:gy-300,active:false,cleared:false}:null;if(S.secretRoom){S.platforms.push({x:1720,y:gy-250,w:300,h:16,solid:true});S.items.push(chest(1900,gy-290));S.enemies.push(enemy(1810,gy-250,'armoredSkeleton'));if(world>=6)S.enemies.push(enemy(1950,gy-250,'demon'));}
  S.platforms.push({x:720,y:gy-170,w:120,h:12,solid:false,moving:1,baseX:720,range:85,phase:0});S.platforms.push({x:1760,y:gy-195,w:115,h:12,solid:false,moving:1,baseX:1760,range:105,phase:2});
+ S.dungeonRoom=makeRoguelikeRoom(gy);
  if(META.turrets>0)S.turrets=[];
 S.pet=META.shop.pet?makePet():null;META.shieldCharges=ADV.shieldCharges!==undefined?ADV.shieldCharges:(META.shop.shield?1:0)}
 const hit=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
@@ -899,7 +912,7 @@ if(!input.jump)jumpHeld=false;
 if(spectator){if(input.jump){p.vy=Math.max(-4.5,p.vy-.85);p.y-=3.3}else if(input.use){p.vy=Math.min(5,p.vy+.65);p.y+=2.4}else{p.vy*=.72;p.y+=Math.sin(S.t*.035)*.32}}else p.vy+=GRAV;
 moveAndCollide(p,p.vx,spectator?0:p.vy);
 if(spectator){p.y=Math.max(8,Math.min(gy-p.h-2,p.y));p.vy=0;p.onGround=p.y+p.h>=gy-3?1:0;}
- for(const pl of S.platforms)if(pl.moving){pl.phase=(pl.phase||0)+.025;pl.x=pl.baseX+Math.sin(pl.phase)*pl.range;}
+ for(const pl of S.platforms)if(pl.moving){const oldX=pl.x;pl.phase=(pl.phase||0)+.025;pl.x=pl.baseX+Math.sin(pl.phase)*pl.range;const dx=pl.x-oldX;for(const rider of [p,S.p2])if(rider&&rider.onGround&&Math.abs(rider.y+rider.h-pl.y)<2&&rider.x+rider.w>oldX&&rider.x<oldX+pl.w)rider.x+=dx;}
  for(const hz of S.hazards||[]){hz.phase=(hz.phase||0)+(hz.type==='spikes'?.011:0);if(hz.type==='spikesFixed'){hz.y=hz.baseY-hz.h}else if(hz.type==='spikes'){if(hz.baseY==null)hz.baseY=hz.y+hz.h;hz.h=spikeHeight(hz);hz.y=hz.baseY-hz.h}if(hz.h>3&&hit(p,hz)&&p.inv<=0)hurtPlayer(hz.type==='lava'?18:13,hz.type==='lava'?'¡Te quemaste en la lava!':'¡Cuidado con los pinchos!');if(S.p2&&hz.h>3&&hit(S.p2,hz)&&S.p2.inv<=0)hurtP2(hz.type==='lava'?16:12)}
 for(const tr of S.turrets||[]){tr.cd--;if(tr.cd<=0){tr.cd=48;let target=S.enemies.filter(e=>e.alive).sort((a,b)=>Math.abs(a.x-tr.x)-Math.abs(b.x-tr.x))[0];if(target&&Math.abs(target.x-tr.x)<360)S.shots.push({owner:'player',type:'turretBullet',x:tr.x,y:tr.y,vx:Math.sign(target.x-tr.x)*11,vy:0,life:50,dmg:14,pierce:0,dir:Math.sign(target.x-tr.x)})}}
 p.x=Math.max(-40,Math.min(2900,p.x));
@@ -977,6 +990,11 @@ if(it.kind=='coin'&&hit(p,it)){it.got=1;META.coins+=10;RUN.coinsEarned+=10;saveM
 if(it.kind=='heart'&&hit(p,it)){it.got=1;RUN.hearts++;const h=healPlayer(it.value);addXp(4);SFX.heart();burst(it.x+7,it.y+6,'#ff6b81',10);toast(h>0?'+'+h+' de vida':'Vida llena')}
 if(it.kind=='key'&&hit(p,it)){it.got=1;S.keys++;RUN.keys++;addXp(25);SFX.chest();burst(it.x+14,it.y+15,'#ffd75e',20);toast('¡Llave dorada!')}
 if(it.kind=='chest'&&pressed.use&&hit(p,{x:it.x-14,y:it.y-14,w:it.w+28,h:it.h+28}))openChest(it)}
+if(pressed.use&&S.dungeonRoom){const r=S.dungeonRoom,p=S.player;
+ if(!r.active&&Math.abs(p.x+p.w/2-r.entryX)<58&&Math.abs(p.y+p.h-GY())<72){r.active=true;p.x=r.roomX+16;p.y=r.roomY-p.h;p.vy=0;p.vx=0;toast('ENTRASTE A LA MAZMORRA · Código: '+r.code.map(id=>r.symbols[id]).join(' → '));burst(p.x+11,p.y,'#b58cff',18)}
+ else if(r.active&&Math.abs(p.x+p.w/2-(r.roomX+22))<22&&Math.abs(p.y+p.h-r.roomY)<35){r.active=false;p.x=r.entryX-10;p.y=GY()-p.h;p.vy=0;p.vx=0;toast('Saliste de la mazmorra')}
+ else if(r.active&&!r.solved){const i=r.stations.findIndex(x=>Math.abs(p.x+p.w/2-x)<34&&Math.abs(p.y-(r.roomY-p.h))<90);if(i>=0){const id=['moon','sun','skull'][i];if(id===r.code[r.progress]){r.progress++;SFX.coin();burst(r.stations[i],r.roomY-36,'#9f7fff',8);toast('Mecanismo '+r.progress+'/3 · código correcto');if(r.progress===3){r.solved=true;S.items.push(chest(r.roomX+r.w-64,r.roomY,'gold'));toast('¡MECANISMO ABIERTO! Apareció un cofre dorado')}}else{r.progress=0;SFX.hit();toast('Código incorrecto · el mecanismo se reinició')}}
+ else if(Math.abs(p.x+p.w/2-(r.roomX+r.w-32))<42&&Math.abs(p.y-(r.roomY-p.h))<90)toast('Mecanismo bloqueado: activá las tres runas en el orden indicado')}}
 if(pressed.use&&S.secretRoom){const sr=S.secretRoom;if(!sr.active&&Math.abs(S.player.x+S.player.w/2-sr.entryX)<55&&Math.abs(S.player.y+S.player.h-GY())<70){sr.active=true;S.player.x=sr.entryX+35;S.player.y=sr.roomY-38;S.player.vy=0;toast('¡HABITACIÓN SECRETA!');burst(S.player.x,S.player.y,'#b58cff',22)}else if(sr.active&&Math.abs(S.player.x+S.player.w/2-sr.exitX)<55&&Math.abs(S.player.y+S.player.h-(sr.roomY+50))<70){sr.active=false;S.player.x=sr.entryX;S.player.y=GY()-38;S.player.vy=0;toast('Volviste al nivel')}}
 if(pressed.use&&S.runes&&S.runes.length){const rune=S.runes.find(r=>Math.abs((S.player.x+11)-r.x)<42&&Math.abs(S.player.y-r.y)<70);if(rune&&!S.secretUnlocked){const expected=['moon','sun','skull'][S.runeProgress];if(rune.id===expected){S.runeProgress++;toast('Mecanismo: '+S.runeProgress+'/3 símbolos correctos');if(S.runeProgress===3){S.secretUnlocked=1;S.items.push(chest(2480,GY()-120));S.items[S.items.length-1].tier='legendary';toast('¡HABITACIÓN SECRETA ABIERTA! Cofre legendario')}}else{S.runeProgress=0;toast('Código incorrecto. El mecanismo se reinició')}}}
 const clear=enemiesLeft()==0;
@@ -1631,6 +1649,10 @@ for(const hz of S.hazards||[]){
   if(hz.pit){g.fillStyle='#5e4d45';g.fillRect(hz.x-4,lip,4,Math.max(10,hz.h+18));g.fillRect(hz.x+hz.w,lip,4,Math.max(10,hz.h+18))}
  }else{const base=hz.baseY??(hz.y+hz.h);g.fillStyle='#46505d';g.fillRect(hz.x,base-3,hz.w,4);if(hz.h>0){g.fillStyle='#dce7ef';const count=Math.max(1,Math.floor(hz.w/15)),step=hz.w/count;for(let q=0;q<count;q++){g.beginPath();g.moveTo(hz.x+q*step,base);g.lineTo(hz.x+(q+.5)*step,hz.y);g.lineTo(hz.x+(q+1)*step,base);g.closePath();g.fill()}}}
 }
+if(S.dungeonRoom){const r=S.dungeonRoom,nearDoor=Math.abs(S.player.x+S.player.w/2-r.entryX)<150; if(nearDoor||r.active){
+ const dx=r.active?r.roomX+22:r.entryX,dy=r.active?r.roomY:GY();g.save();g.translate(dx,dy);g.shadowColor='#9f7fff';g.shadowBlur=18;g.fillStyle='#271d39';g.fillRect(-20,-64,40,64);g.shadowBlur=0;g.strokeStyle='#b58cff';g.lineWidth=3;g.strokeRect(-16,-60,32,60);g.fillStyle='#d7b8ff';g.font='bold 10px sans-serif';g.textAlign='center';g.fillText(r.active?'SALIR':'MAZMORRA',0,-72);g.font='9px sans-serif';g.fillText('C / USAR',0,-83);g.textAlign='left';g.restore();}
+ if(r.active){for(let i=0;i<r.stations.length;i++){const sx=r.stations[i],id=['moon','sun','skull'][i],lit=r.solved||r.progress>0&&r.code.indexOf(id)<r.progress;g.save();g.shadowColor=lit?'#83ffca':'#a878ff';g.shadowBlur=lit?15:8;g.fillStyle=lit?'#54b98c':'#40345c';g.beginPath();g.arc(sx,r.roomY-28,13,0,Math.PI*2);g.fill();g.shadowBlur=0;g.fillStyle='#fff';g.font='16px sans-serif';g.textAlign='center';g.fillText(r.symbols[id],sx,r.roomY-22);g.font='9px sans-serif';g.fillText('C',sx,r.roomY-8);g.textAlign='left';g.restore();}}
+}
 if(S.secretRoom){const sr=S.secretRoom;
  const drawSecretDoor=(x,y,label)=>{g.save();g.translate(x,y);g.shadowColor='#f8c55c';g.shadowBlur=15;g.fillStyle='#4b3544';g.fillRect(-25,-70,50,70);g.shadowBlur=0;g.fillStyle='#a4845a';g.fillRect(-22,-68,44,68);g.fillStyle='#35212b';g.fillRect(-18,-64,36,64);g.fillStyle='#624035';g.fillRect(-15,-61,30,61);g.strokeStyle='#b99a65';g.lineWidth=2;g.strokeRect(-15,-61,30,61);g.beginPath();g.moveTo(0,-60);g.lineTo(0,0);g.moveTo(-14,-42);g.lineTo(14,-42);g.moveTo(-14,-20);g.lineTo(14,-20);g.stroke();g.fillStyle='#ffd76a';g.beginPath();g.arc(9,-28,3,0,Math.PI*2);g.fill();g.font='bold 11px sans-serif';g.textAlign='center';g.fillStyle='#fff1ba';g.fillText(label,0,-79);g.font='10px sans-serif';g.fillText('C / USAR',0,-91);g.restore()};
  drawSecretDoor(sr.entryX,GY(),'PUERTA SECRETA');if(sr.active)drawSecretDoor(sr.exitX,sr.roomY+50,'SALIR');
@@ -1740,6 +1762,7 @@ g.beginPath();g.moveTo(14,0);g.lineTo(-10,-12);g.lineTo(-4,0);g.lineTo(-10,12);g
 if(dmgFlash>0){dmgFlash--;g.fillStyle='rgba(255,60,60,'+(dmgFlash/50)+')';g.fillRect(0,0,W,H)}
 drawHUD();
 if(S.runes&&S.runes.length){g.fillStyle='#d7c7ff';g.font='10px sans-serif';g.fillText('ACERTIJO ☾ → ☀ → ☠  ·  '+(S.runeProgress||0)+'/3  (tecla C)',14,78)}
+if(S.dungeonRoom&&S.dungeonRoom.active){const r=S.dungeonRoom;g.fillStyle='#d7c7ff';g.font='bold 12px sans-serif';g.fillText('CÓDIGO: '+r.code.map(id=>r.symbols[id]).join(' → '),14,100);g.font='10px sans-serif';g.fillText(r.solved?'MECANISMO ABIERTO · Cofre dorado':'Activá las runas en orden · '+r.progress+'/3 · C',14,116)}
 const b2=S.boss;
 if(b2&&b2.alive){g.fillStyle='#000000a0';g.fillRect(W/2-130,62,260,16);g.fillStyle=b2.type=='shadow'?'#9f7fff':'#e2483d';g.fillRect(W/2-128,64,256*Math.max(0,b2.hp/b2.maxhp),12);g.fillStyle='#fff';g.font='7px '+FONT_PX;g.textAlign='center';g.fillText(b2.name+' F'+b2.phase,W/2,58);g.textAlign='left'}}
 let loopLast=0,loopAcc=0;
@@ -1754,7 +1777,7 @@ function setControlsVisibility(active){
 const mobileLike=window.matchMedia('(pointer:coarse), (max-width:800px)').matches;
 document.getElementById('controls').style.display=(active&&mobileLike)?'flex':'none';
 }
-function startLevel(){setControlsVisibility(true);paused=false;document.getElementById('end').classList.add('hide');document.getElementById('pause').classList.add('hide');document.getElementById('stats').classList.add('hide');document.getElementById('settings').classList.add('hide');newGame();toast(WORLDS[world-1].name+' N'+level+' · Acertijo: activá ☾, ☀ y ☠ en ese orden con C. Habrá sala secreta en niveles pares.')}
+function startLevel(){setControlsVisibility(true);paused=false;document.getElementById('end').classList.add('hide');document.getElementById('pause').classList.add('hide');document.getElementById('stats').classList.add('hide');document.getElementById('settings').classList.add('hide');newGame();toast(WORLDS[world-1].name+' N'+level+' · Acertijo: activá ☾, ☀ y ☠ en ese orden con C. Habrá sala secreta en niveles pares. Explorá la puerta violeta para una mazmorra roguelike con código, lava, trampas y plataformas móviles.')}
 let creativeMap=[],creativeMapName='Mi mapa',customMapActive=false;
 function updateCreativeInfo(){const el=document.getElementById('creativeInfo');if(el)el.textContent='Herramienta: '+creativeTool+' · Elementos: '+creativeMap.length+' · Guardá antes de salir'}
 function buildCreativeToolbar(){
