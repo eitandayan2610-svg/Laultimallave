@@ -20,7 +20,7 @@ function makeGoal(z,dir){let g=new THREE.Group();scene.add(g);const zz=z+dir*1.2
 // stands, seats and lights
 const stand=M(0x24394d);for(let side of [-1,1]){box(scene,48,3.5,5,stand,0,1.45,side*35);for(let row=0;row<4;row++){box(scene,48,.62,1.3,M([0x375976,0x29445f,0x3a5367,0x293d54][row]),0,3.35+row*.7,side*(33+row*.45))}for(let x of [-17,17]){let pole=box(scene,.18,9,.18,dark,x,7,side*31);let lamp=box(scene,3,.3,.55,white,x,11.3,side*31);lamp.material.emissive=new THREE.Color(0xeeeecc)}}
 // Dense stylized crowd rows make the stadium feel occupied
-const crowdColors=[0xd04a40,0x217bc0,0xf3d35a,0xe8e8de,0x5dba7e,0x704aa5,0x263848];for(let row=0;row<4;row++){for(let col=0;col<68;col++){let xx=-23+col*.68+(Math.random()-.5)*.18,yy=3.55+row*.7,zz=side*(32.2+row*.48);let body=new THREE.Mesh(new THREE.SphereGeometry(.12,6,5),M(crowdColors[(col*7+row*3+(side>0?1:0))%crowdColors.length]));body.position.set(xx,yy,zz);body.scale.y=1.25;scene.add(body)}}}
+for(let side of [-1,1]){const crowdColors=[0xd04a40,0x217bc0,0xf3d35a,0xe8e8de,0x5dba7e,0x704aa5,0x263848];for(let row=0;row<4;row++){for(let col=0;col<68;col++){let xx=-23+col*.68+(Math.random()-.5)*.18,yy=3.55+row*.7,zz=side*(32.2+row*.48);let body=new THREE.Mesh(new THREE.SphereGeometry(.12,6,5),M(crowdColors[(col*7+row*3+(side>0?1:0))%crowdColors.length]));body.position.set(xx,yy,zz);body.scale.y=1.25;scene.add(body)}}}
 function makePlayer(team,x,z,keeper=false,num=0){
 let g=new THREE.Group();scene.add(g);let home=team==='blue'?blue:team==='red'?red:gold;let shortsMat=team==='blue'?M(0x10294d):team==='red'?M(0x50181b):M(0x202b34);let sockMat=team==='blue'?M(0xf0f4fa):team==='red'?M(0xffe5e2):M(0xf2d658);
 // Tapered shirt, shoulders, collar and waist create a football-kit silhouette
