@@ -413,15 +413,15 @@ masterG=AC.createGain();musicG=AC.createGain();sfxG=AC.createGain();ambG=AC.crea
 musicG.connect(masterG);sfxG.connect(masterG);ambG.connect(masterG);enemyG.connect(masterG);masterG.connect(AC.destination);
 applyVol('master',VOL.master*100);applyVol('music',VOL.music*100);applyVol('sfx',VOL.sfx*100);applyVol('amb',VOL.amb*100);applyVol('enemy',VOL.enemy*100);
 startAmbience()}
-if(AC&&AC.state=='suspended')AC.resume()}
+if(musicOn&&AC&&AC.state=='suspended')AC.resume();if(musicOn)startAmbience()}
 function applyVol(which,v){v=Number(v);VOL[which]=v/100;
 const el=document.getElementById('vol'+which.charAt(0).toUpperCase()+which.slice(1)+'Val');if(el)el.textContent=v+'%';
 if(!AC)return;
 if(which=='master')masterG.gain.value=musicOn?VOL.master:0;
-if(which=='music')musicG.gain.value=VOL.music;
-if(which=='sfx')sfxG.gain.value=VOL.sfx;
-if(which=='amb')ambG.gain.value=VOL.amb;
-if(which=='enemy')enemyG.gain.value=VOL.enemy}
+if(which=='music')musicG.gain.value=musicOn?VOL.music:0;
+if(which=='sfx')sfxG.gain.value=musicOn?VOL.sfx:0;
+if(which=='amb')ambG.gain.value=musicOn?VOL.amb:0;
+if(which=='enemy')enemyG.gain.value=musicOn?VOL.enemy:0}
 function applyBtnSize(v){v=Number(v);document.getElementById('btnSizeVal').textContent=v+'%';
 document.getElementById('controls').style.transform='scale('+(v/100)+')'}
 function beep(freq,dur,type,vol,when,dest){if(!AC||!musicOn)return;const t=(when||AC.currentTime);
@@ -440,10 +440,18 @@ gameOver(){[392,330,262,196].forEach((f,i)=>beep(f,.3,'triangle',.1,AC?AC.curren
 boss(){[110,110,146,110].forEach((f,i)=>beep(f,.2,'sawtooth',.09,AC?AC.currentTime+i*.18:0,null,enemyG))},
 bossFinal(){[82,82,110,82,110,147].forEach((f,i)=>beep(f,.25,'sawtooth',.11,AC?AC.currentTime+i*.16:0,null,enemyG))},
 level(){[523,659,784,1046,1318].forEach((f,i)=>beep(f,.14,'square',.07,AC?AC.currentTime+i*.09:0))}};
-function toggleSound(){musicOn=!musicOn;ensureAudio();if(masterG)masterG.gain.value=musicOn?VOL.master:0;
+function toggleSound(){musicOn=!musicOn;ensureAudio();
 const label=musicOn?'🔊 SONIDO: ON':'🔇 SONIDO: OFF';
 ['soundBtn','soundMenuBtn','soundPauseBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=label});
-if(musicOn){startMusic();startAmbience()}else{stopMusic();stopAmbience()}}
+if(musicOn){
+ if(AC){masterG.gain.value=VOL.master;musicG.gain.value=VOL.music;sfxG.gain.value=VOL.sfx;ambG.gain.value=VOL.amb;enemyG.gain.value=VOL.enemy;
+  if(AC.state==='suspended')AC.resume().then(()=>{startMusic();startAmbience()}).catch(()=>{});else{startMusic();startAmbience()}}
+}else{
+ stopMusic();stopAmbience();
+ // Silenciar todos los buses y suspender el motor: corta también notas ya programadas.
+ if(AC){masterG.gain.value=0;musicG.gain.value=0;sfxG.gain.value=0;ambG.gain.value=0;enemyG.gain.value=0;
+  if(AC.state==='running')AC.suspend().catch(()=>{})}
+}}
 function startMusic(){if(!AC||!musicOn||musicTimer)return;
 // Banda sonora oscura y claramente audible: motivo lento en rango medio, drones y ecos.
 const motif=[110,116.54,130.81,123.47,110,164.81,155.56,130.81,116.54,110,146.83,123.47];
