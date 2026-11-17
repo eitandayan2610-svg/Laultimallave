@@ -10,12 +10,12 @@
 <body>
 <div id="hud"><div id="help"><b>JUGÁ</b><br>WASD o flechas: moverte<br>Espacio: patear · Shift: correr<br>Acercate a la pelota y apuntá al arco rival</div><div id="score"><small>AZULES　—　ROJOS</small><span id="goals">0　—　0</span><small id="clock">02:00</small></div><div id="status"></div><div id="bottom">Azules: atacá el arco de arriba</div><button id="restart" style="pointer-events:auto;position:absolute;top:12px;right:12px;padding:10px;border:0;border-radius:10px;background:#fff;color:#123;font-weight:bold">Reiniciar</button></div>
 <div class="touch pad"><div class="tbtn up" data-key="arrowup">▲</div><div class="tbtn down" data-key="arrowdown">▼</div><div class="tbtn left" data-key="arrowleft">◀</div><div class="tbtn right" data-key="arrowright">▶</div></div><div class="touch actions"><div class="tbtn pass" data-action="pass">PASE</div><div class="tbtn shoot" data-action="shoot">PATEAR</div></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (()=>{
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x78b9dc);scene.fog=new THREE.Fog(0x78b9dc,42,100);
 const camera=new THREE.PerspectiveCamera(49,innerWidth/innerHeight,.1,200);camera.position.set(0,23,27);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.appendChild(renderer.domElement);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputEncoding=THREE.sRGBEncoding;document.body.appendChild(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xd9f3ff,0x365b37,2));const sun=new THREE.DirectionalLight(0xffffff,2.2);sun.position.set(-12,24,13);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-35;sun.shadow.camera.right=35;sun.shadow.camera.top=30;sun.shadow.camera.bottom=-30;scene.add(sun);
 const mat=(c,r=.8)=>new THREE.MeshStandardMaterial({color:c,roughness:r});
 const grass=mat(0x16783e),stripe1=mat(0x188545),stripe2=mat(0x14783d),white=mat(0xf2f3df),blue=mat(0x177be6),red=mat(0xe5443e),skin=mat(0xd9a37d),black=mat(0x12202a),ballmat=mat(0xffffff,.45),netmat=new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:.22});
