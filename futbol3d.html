@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Fútbol 3D</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#081622;font-family:system-ui,Arial;color:#fff}canvas{display:block}#hud{position:fixed;inset:0;pointer-events:none;text-shadow:0 2px 5px #001}#score{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:#071827d9;border:1px solid #ffffff33;border-radius:16px;padding:9px 20px;text-align:center;min-width:180px;font-weight:800;font-size:23px;letter-spacing:1px}#score small{display:block;font-size:10px;letter-spacing:2px;color:#a9c7da}#help{position:absolute;top:17px;left:18px;font-size:12px;line-height:1.5;color:#e5f5ff;background:#061a2bbb;padding:10px 12px;border-radius:12px}#status{position:absolute;top:95px;left:50%;transform:translateX(-50%);font-weight:800;font-size:20px;color:#fff;background:#002b1dbb;border-radius:10px;padding:5px 12px;opacity:0;transition:opacity .25s}#bottom{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:12px;color:#d3e4ed;background:#061a2bbb;padding:7px 13px;border-radius:20px;white-space:nowrap}.touch{position:fixed;display:none;pointer-events:none;bottom:28px}.pad{left:22px;width:132px;height:132px}.actions{right:20px;width:150px;height:130px}.tbtn{position:absolute;pointer-events:auto;border:1px solid #ffffff99;background:#071827aa;color:white;border-radius:50%;font-weight:800;touch-action:none;user-select:none;display:grid;place-items:center}.up{width:48px;height:48px;left:42px;top:0}.down{width:48px;height:48px;left:42px;bottom:0}.left{width:48px;height:48px;left:0;top:42px}.right{width:48px;height:48px;right:0;top:42px}.shoot{width:68px;height:68px;right:0;bottom:0;background:#ef8a18cc}.pass{width:52px;height:52px;left:0;bottom:10px;background:#1485d4cc;font-size:11px}@media(max-width:700px){#help{display:none}.touch{display:block}#bottom{bottom:170px;font-size:10px}#score{top:10px}}
+</style>
+</head>
+<body>
+<div id="hud"><div id="help"><b>JUGÁ</b><br>WASD o flechas: moverte<br>Espacio: patear · Shift: correr<br>Acercate a la pelota y apuntá al arco rival</div><div id="score"><small>AZULES　—　ROJOS</small><span id="goals">0　—　0</span><small id="clock">02:00</small></div><div id="status"></div><div id="bottom">Azules: atacá el arco de arriba</div><button id="restart" style="pointer-events:auto;position:absolute;top:12px;right:12px;padding:10px;border:0;border-radius:10px;background:#fff;color:#123;font-weight:bold">Reiniciar</button></div>
+<div class="touch pad"><div class="tbtn up" data-key="arrowup">▲</div><div class="tbtn down" data-key="arrowdown">▼</div><div class="tbtn left" data-key="arrowleft">◀</div><div class="tbtn right" data-key="arrowright">▶</div></div><div class="touch actions"><div class="tbtn pass" data-action="pass">PASE</div><div class="tbtn shoot" data-action="shoot">PATEAR</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+<script>
+(()=>{
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x78b9dc);scene.fog=new THREE.Fog(0x78b9dc,42,100);
+const camera=new THREE.PerspectiveCamera(49,innerWidth/innerHeight,.1,200);camera.position.set(0,23,27);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xd9f3ff,0x365b37,2));const sun=new THREE.DirectionalLight(0xffffff,2.2);sun.position.set(-12,24,13);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-35;sun.shadow.camera.right=35;sun.shadow.camera.top=30;sun.shadow.camera.bottom=-30;scene.add(sun);
+const mat=(c,r=.8)=>new THREE.MeshStandardMaterial({color:c,roughness:r});
+const grass=mat(0x16783e),stripe1=mat(0x188545),stripe2=mat(0x14783d),white=mat(0xf2f3df),blue=mat(0x177be6),red=mat(0xe5443e),skin=mat(0xd9a37d),black=mat(0x12202a),ballmat=mat(0xffffff,.45),netmat=new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:.22});
+function box(parent,w,h,d,m,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+// grass field and alternating bands
+box(scene,38,.2,56,grass,0,-.15,0);for(let i=0;i<7;i++)box(scene,38,.015,8,i%2?stripe1:stripe2,0,-.035,-24+i*8);
+// line geometry on pitch
+const lineMat=new THREE.LineBasicMaterial({color:0xf4f4e8});function line(points){const geo=new THREE.BufferGeometry().setFromPoints(points.map(p=>new THREE.Vector3(p[0],.02,p[1])));scene.add(new THREE.Line(geo,lineMat))}
+function rect(x1,z1,x2,z2){line([[x1,z1],[x2,z1],[x2,z2],[x1,z2],[x1,z1]])}rect(-18,-27,18,27);line([[-18,0],[18,0]]);const circ=new THREE.Mesh(new THREE.TorusGeometry(5.2,.045,6,64),white);circ.rotation.x=Math.PI/2;circ.position.y=.025;scene.add(circ);const spot=new THREE.Mesh(new THREE.CircleGeometry(.13,16),white);spot.rotation.x=-Math.PI/2;spot.position.set(0,.03,0);scene.add(spot);rect(-9,-27,9,-19);rect(-9,19,9,27);rect(-4,-27,4,-23);rect(-4,23,4,27);
+// goals at ends
+function goal(z,dir){const g=new THREE.Group();scene.add(g);let zz=z+dir*1.1;box(g, .18,2.3,.18,white,-4,1.15,zz);box(g,.18,2.3,.18,white,4,1.15,zz);box(g,8.15,.18,.18,white,0,2.3,zz);let net=new THREE.Mesh(new THREE.BoxGeometry(8,2.3,2),netmat);net.position.set(0,1.12,z+dir*2);g.add(net);}
+goal(-27,-1);goal(27,1);
+// distant stands
+const standmat=mat(0x283e59);for(const s of [-1,1]){box(scene,45,3,5,standmat,0,1.4,s*32);for(let j=0;j<3;j++){let m=mat([0x355b7a,0x263f5e,0x3f5067][j]);box(scene,45,.75,1.1,m,0,3.2+j*.82,s*(31.5+j*.3));}}
+// player characters
+function player(color,x,z,keeper=false){const g=new THREE.Group();scene.add(g);const body=new THREE.Mesh(new THREE.CylinderGeometry(.46,.55,1.15,12),color);body.position.y=1.05;body.castShadow=true;g.add(body);const head=new THREE.Mesh(new THREE.SphereGeometry(.32,14,12),skin);head.position.y=1.83;head.castShadow=true;g.add(head);const hair=new THREE.Mesh(new THREE.SphereGeometry(.33,12,8,0,Math.PI*2,0,Math.PI/2),black);hair.position.y=1.97;g.add(hair);const legs=[];for(const sx of [-.23,.23]){const leg=new THREE.Mesh(new THREE.CylinderGeometry(.13,.15,.68,8),black);leg.position.set(sx,.34,0);g.add(leg);legs.push(leg)}const shoe1=box(g,.22,.13,.4,black,-.23,.08,-.08),shoe2=box(g,.22,.13,.4,black,.23,.08,-.08);g.position.set(x,0,z);g.userData={legs,keeper};return g}
+const hero=player(blue,-1,13),foe=player(red,1,-12),keeper=player(mat(0xf2c230),0,-24,true);
+const mates=[player(mat(0x1683e9),-8,3),player(mat(0x1683e9),8,5),player(mat(0x1683e9),-7,19),player(mat(0x1683e9),7,21)];
+const rivals=[player(mat(0xe5443e),-8,-5),player(mat(0xe5443e),8,-3),player(mat(0xe5443e),-7,-19),player(mat(0xe5443e),7,-20)];
+const ball=new THREE.Mesh(new THREE.SphereGeometry(.36,24,18),ballmat);ball.castShadow=true;ball.position.set(0,.38,8);scene.add(ball);const seams=new THREE.Mesh(new THREE.TorusGeometry(.25,.018,5,18),black);seams.position.copy(ball.position);scene.add(seams);
+const keys={};onkeydown=e=>{keys[e.key.toLowerCase()]=true;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();if(e.key.toLowerCase()==='r')reset()};onkeyup=e=>keys[e.key.toLowerCase()]=false;
+document.querySelectorAll('.tbtn').forEach(el=>{let k=el.dataset.key,a=el.dataset.action;const down=e=>{e.preventDefault();if(k)keys[k]=true;if(a==='shoot')kick(false);if(a==='pass')kick(true)};const up=e=>{e.preventDefault();if(k)keys[k]=false};el.addEventListener('pointerdown',down);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('pointerleave',up)});
+let vel=new THREE.Vector3(),score=[0,0],time=120,over=false,last=performance.now(),toastTimer;
+const hud=document.querySelector('#goals'),clock=document.querySelector('#clock'),status=document.querySelector('#status');function say(t){status.textContent=t;status.style.opacity=1;clearTimeout(toastTimer);toastTimer=setTimeout(()=>status.style.opacity=0,1500)}
+function reset(){score=[0,0];time=120;over=false;hud.textContent='0　—　0';hero.position.set(-1,0,13);foe.position.set(1,0,-12);ball.position.set(0,.38,8);vel.set(0,0,0);say('¡A jugar!')}
+document.getElementById('restart').addEventListener('click',reset);
+function kick(pass){let dx=ball.position.x-hero.position.x,dz=ball.position.z-hero.position.z;if(Math.hypot(dx,dz)>2.25)return;say(pass?'¡Buen pase!':'¡Pateá!');let aimX=pass?Math.sign(hero.position.x||1)*6:-hero.position.x*.24;let aimZ=pass?hero.position.z-5:-28;let d=new THREE.Vector3(aimX-ball.position.x,0,aimZ-ball.position.z).normalize();vel.x=d.x*(pass?13:20);vel.z=d.z*(pass?13:20);vel.y=pass?2.3:4.8;}
+onkeydown=e=>{keys[e.key.toLowerCase()]=true;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();if(e.key===' '&&!e.repeat)kick(false);if(e.key.toLowerCase()==='r')reset()};
+function goalCheck(){if(Math.abs(ball.position.x)<4&&Math.abs(ball.position.z)>27&&ball.position.y<2.5){let side=ball.position.z<0?0:1;score[side]++;hud.textContent=score[0]+'　—　'+score[1];say(side===0?'¡GOOOL!':'Gol del rival');ball.position.set(0,.38,side===0?8:-8);vel.set(0,0,0);hero.position.set(-1,0,side===0?13:-13)}}
+function movePlayer(p,dx,dz,speed,clamp=25){p.position.x=THREE.MathUtils.clamp(p.position.x+dx*speed,-17,17);p.position.z=THREE.MathUtils.clamp(p.position.z+dz*speed,-clamp,clamp)}
+function animate(now){requestAnimationFrame(animate);let dt=Math.min((now-last)/1000,.04);last=now;if(!over){time-=dt;if(time<=0){time=0;over=true;say('¡Final! Pulsa R para revancha')}clock.textContent=String(Math.floor(time/60)).padStart(2,'0')+':'+String(Math.floor(time%60)).padStart(2,'0');let dx=0,dz=0;if(keys.a||keys.arrowleft)dx-=1;if(keys.d||keys.arrowright)dx+=1;if(keys.w||keys.arrowup)dz-=1;if(keys.s||keys.arrowdown)dz+=1;let mag=Math.hypot(dx,dz)||1;let run=keys.shift?8.7:6.2;movePlayer(hero,dx/mag,dz/mag,run*dt);if((keys[' ']||keys.e)&&!keys._shoot){kick(false);keys._shoot=true}if(!keys[' ']&&!keys.e)keys._shoot=false;
+// AI chase when close, otherwise recover; the red striker attacks toward blue goal
+let toB=new THREE.Vector3(ball.position.x-foe.position.x,0,ball.position.z-foe.position.z);if(toB.length()>1.35)movePlayer(foe,toB.x/(toB.length()||1),toB.z/(toB.length()||1),5.15*dt,25);else if(Math.random()<.025){vel.x+=(0-foe.position.x)*.15;vel.z+=18}let kd=ball.position.x-keeper.position.x;keeper.position.x=THREE.MathUtils.clamp(keeper.position.x+THREE.MathUtils.clamp(kd,-1,1)*dt*5,-3.4,3.4);keeper.position.z=-24;
+// Push the ball naturally while running toward it
+let hx=ball.position.x-hero.position.x,hz=ball.position.z-hero.position.z,hd=Math.hypot(hx,hz);if(hd<1.05&&hd>.01&&ball.position.y<1.1&&(dx||dz)){let nx=dx/mag,nz=dz/mag;if(nx*hx+nz*hz>0){vel.x=nx*7;vel.z=nz*7;}}
+// ball physics
+ball.position.x+=vel.x*dt;ball.position.z+=vel.z*dt;ball.position.y+=vel.y*dt;vel.y-=15*dt;if(ball.position.y<.36){ball.position.y=.36;vel.y=Math.max(0,-vel.y*.43);vel.x*=.988;vel.z*=.988}if(ball.position.x<-18||ball.position.x>18){ball.position.x=THREE.MathUtils.clamp(ball.position.x,-18,18);vel.x*=-.6}if(Math.abs(ball.position.z)>28&&Math.abs(ball.position.x)>4){ball.position.z=Math.sign(ball.position.z)*28;vel.z*=-.6}if(Math.abs(ball.position.z)>27&&Math.abs(ball.position.x)<4&&ball.position.y<2.5)goalCheck();
+// collision with opposing players / keeper
+for(const p of [foe,keeper,...rivals]){let ox=ball.position.x-p.position.x,oz=ball.position.z-p.position.z,dist=Math.hypot(ox,oz);if(dist<.95&&ball.position.y<1.5){let n=dist||1;vel.x=ox/n*7;vel.z=oz/n*7;vel.y=Math.max(vel.y,2.4)}}
+// ball spin visual
+ball.rotation.x+=vel.z*dt*1.3;ball.rotation.z-=vel.x*dt*1.3;seams.position.copy(ball.position);seams.rotation.copy(ball.rotation);
+// decorative teammates lightly move into lanes
+mates.forEach((p,i)=>{let targetX=[-8,8,-7,7][i]+Math.sin(now/1700+i)*.7; p.position.x+=(targetX-p.position.x)*dt*.4});
+}
+// follow camera with player, keep pitch visible
+camera.position.x+=(hero.position.x*.28-camera.position.x)*dt*1.3;camera.position.z+=(hero.position.z+13-camera.position.z)*dt*.7;camera.lookAt(hero.position.x*.2,0,hero.position.z-3);renderer.render(scene,camera)}
+// Remove duplicate animation starter issue: animate itself schedules next frame.
+requestAnimationFrame(animate);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+})();
+</script>
+</body></html>
