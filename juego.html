@@ -445,17 +445,28 @@ const label=musicOn?'🔊 SONIDO: ON':'🔇 SONIDO: OFF';
 ['soundBtn','soundMenuBtn','soundPauseBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=label});
 if(musicOn){startMusic();startAmbience()}else{stopMusic();stopAmbience()}}
 function startMusic(){if(!AC||!musicOn||musicTimer)return;
-// Nueva banda sonora: drone grave, escala disminuida y campanas desafinadas para un clima de terror.
-const scale=[49,51.9,58.3,65.4,69.3,77.8,82.4,98,103.8],bass=[27.5,29.1,36.7,41.2];
+// Ambientación tenebrosa: motivo menor/diminuto lento, drones graves y ecos suaves.
+const motif=[55,58.27,65.41,61.74,55,82.41,77.78,65.41,58.27,55,73.42,61.74],bass=[27.5,29.14,32.70,30.87];
+const playTone=(freq,t,dur,volume,wave,cutoff,detune)=>{
+ const o=AC.createOscillator(),filter=AC.createBiquadFilter(),gain=AC.createGain();
+ o.type=wave||'triangle';o.frequency.setValueAtTime(freq,t);o.detune.value=detune||0;
+ filter.type='lowpass';filter.frequency.setValueAtTime(cutoff||520,t);filter.Q.value=.7;
+ gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(volume,t+.16);gain.gain.setValueAtTime(volume,t+Math.max(.2,dur-.28));gain.gain.exponentialRampToValueAtTime(.0001,t+dur);
+ o.connect(filter);filter.connect(gain);gain.connect(musicG);o.start(t);o.stop(t+dur+.03);
+};
+// The low, quiet drone makes the melody feel ominous without drowning out game sounds.
+playTone(27.5,AC.currentTime,3.8,.027,'sine',115,0);
+let beat=0;
 musicTimer=setInterval(()=>{if(!AC||!musicOn)return;
-const t=AC.currentTime;
-const o=AC.createOscillator(),gn=AC.createGain(),lp=AC.createBiquadFilter();
-o.type='sawtooth';o.frequency.value=scale[musicStep%scale.length]*(musicStep%5===4?1.414:1);o.detune.value=(musicStep%2? -13:11);
-lp.type='lowpass';lp.frequency.value=260;gn.gain.setValueAtTime(.012,t);gn.gain.exponentialRampToValueAtTime(.0001,t+1.8);
-o.connect(lp);lp.connect(gn);gn.connect(musicG);o.start(t);o.stop(t+1.85);
-if(musicStep%3===0){const b=AC.createOscillator(),bg=AC.createGain();b.type='sine';b.frequency.value=bass[Math.floor(musicStep/3)%bass.length];bg.gain.setValueAtTime(.065,t);bg.gain.exponentialRampToValueAtTime(.001,t+1.35);b.connect(bg);bg.connect(musicG);b.start(t);b.stop(t+1.4)}
-if(musicStep%4===1){const bell=AC.createOscillator(),eg=AC.createGain();bell.type='triangle';bell.frequency.value=scale[(musicStep+4)%scale.length]*4.02;eg.gain.setValueAtTime(.008,t);eg.gain.exponentialRampToValueAtTime(.0001,t+.75);bell.connect(eg);eg.connect(musicG);bell.start(t);bell.stop(t+.8)}
-musicStep++},780)}
+ const t=AC.currentTime,n=motif[beat%motif.length];
+ playTone(n,t,1.72,.018,'triangle',430,beat%2?-7:6);
+ // A wavering fifth below adds a hollow, uneasy harmony.
+ if(beat%3!==2)playTone(n*.5,t+.08,1.9,.013,'sine',190,-3);
+ // Sparse bell-like high notes decay into the cave-like ambience.
+ if(beat%4===2)playTone(n*4.01,t+.16,2.15,.006,'sine',1250,beat%2?9:-11);
+ if(beat%4===0)playTone(bass[(beat/4)%bass.length|0],t,3.4,.031,'sine',125,0);
+ beat++;musicStep++;
+},1450)}
 function stopMusic(){if(musicTimer){clearInterval(musicTimer);musicTimer=null}}
 function startAmbience(){if(!AC||!musicOn||ambTimer)return;
 ambTimer=setInterval(()=>{if(!AC||!musicOn)return;
