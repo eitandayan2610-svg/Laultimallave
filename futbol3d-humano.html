@@ -72,7 +72,7 @@ function applyHuman(p,gltf){
  const bones={left:model.getObjectByName('upperleg01.L'),right:model.getObjectByName('upperleg01.R'),armL:model.getObjectByName('upperarm01.L'),armR:model.getObjectByName('upperarm01.R')};
  p.userData.rig={model,bones,phase:Math.random()*6};
 }
-modelLoader.load('futbol-humano.glb',gltf=>{try{[...blueTeam,...redTeam].forEach(p=>applyHuman(p,gltf));document.body.dataset.playerModels='ready'}catch(e){document.body.dataset.playerModels='error';console.error(e)}},undefined,e=>{document.body.dataset.playerModels='error';console.error('No se pudo cargar el jugador humano',e)});
+modelLoader.load('futbol-humano.glb',gltf=>{try{[...blueTeam,...redTeam].forEach(p=>applyHuman(p,gltf));document.body.dataset.playerModels='ready';const lab=document.getElementById('stadiumLabel');lab.textContent='EQUIPO HUMANO · PRUEBA v9';}catch(e){document.body.dataset.playerModels='error';const lab=document.getElementById('stadiumLabel');lab.textContent='ERROR AL APLICAR MODELO';console.error(e)}},undefined,e=>{document.body.dataset.playerModels='error';const lab=document.getElementById('stadiumLabel');lab.textContent='ERROR CARGANDO GLB';console.error('No se pudo cargar el jugador humano',e)});
 
 let controlled=blueTeam[1];function selectPlayer(p){controlled=blueTeam[p];say('Controlás al jugador '+controlled.userData.num)}
 // ball, stitched graphic pattern
